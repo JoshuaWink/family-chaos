@@ -1,0 +1,5 @@
+[project]
+name = "family-chaos"
+version = "0.1.0"
+description = "Family scheduling puzzle game — Python stdlib only, zero external deps"
+requires-python = ">=3.9"
