@@ -89,7 +89,7 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
 .ev:hover{filter:brightness(1.1)}
 .ev.conflict{background:var(--danger)!important}.ev.ok{background:var(--success)!important}
 .ev.easy-col{background:#15803d}.ev.hard-col{background:#9333ea}
-.blocker{position:absolute;top:3px;height:calc(100% - 6px);background:rgba(148,163,184,.14);border:1px dashed rgba(148,163,184,.55);border-radius:4px;display:flex;align-items:center;padding:0 5px;font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;z-index:1;pointer-events:none;color:#e2e8f0;opacity:.95}
+.blocker{position:absolute;top:3px;height:calc(100% - 6px);background:rgba(148,163,184,.14);border:1px dashed rgba(148,163,184,.55);border-radius:4px;display:flex;align-items:center;padding:0 5px;font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;z-index:3;pointer-events:auto;cursor:help;color:#e2e8f0;opacity:.95}
 .blocker.hidden{background:rgba(107,114,128,.10);border-style:dashed;color:rgba(226,232,240,.68)}
 .blocker.conflict{background:rgba(239,68,68,.28);border-color:rgba(239,68,68,.85);color:#fff}
 #pov{display:none;position:fixed;z-index:100;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:18px 18px 14px;width:288px;box-shadow:0 8px 30px rgba(0,0,0,.6);max-height:76vh;overflow-y:auto}
@@ -208,51 +208,34 @@ const DIFF_TASKS={
 };
 const DIFF_LABELS={easy:'Easy \u2014 10 tasks',normal:'Normal \u2014 14 tasks',hard:'Hard \u2014 22 tasks'};
 
-const BLOCKER_BASE = [
-  { blocker_id:'b1', label:'Alex client review', person_id:'p1', start_slot:14, duration_minutes:45, modes:['easy','normal','hard'], notes:'Already blocked on Alex\'s calendar before the day starts.' },
-  { blocker_id:'b2', label:'Morgan bridge club', person_id:'p6', start_slot:24, duration_minutes:60, modes:['easy','normal','hard'], notes:'Morgan is already committed to bridge club from 1:00 to 2:00.' },
-  { blocker_id:'b3', label:'Jordan hospital huddle', person_id:'p2', start_slot:28, duration_minutes:60, modes:['normal','hard'], notes:'A standing hospital huddle that eats the lunch block.' },
-  { blocker_id:'b4', label:'Drew invoice review', person_id:'p10', start_slot:38, duration_minutes:30, modes:['hard'], notes:'Drew has to review invoices late in the afternoon.' },
+// Fixed holds — always visible from game start
+const BLOCKERS_FIXED = [
+  { blocker_id:'b1', label:'Alex client review',    person_id:'p1',  start_slot:14, duration_minutes:45, modes:['easy','normal','hard'], notes:"Already on Alex's calendar. He can't be moved or given anything else during this window." },
+  { blocker_id:'b2', label:'Morgan bridge club',     person_id:'p6',  start_slot:24, duration_minutes:60, modes:['easy','normal','hard'], notes:'Morgan committed to bridge club 1:00-2:00 pm. She is unavailable and cannot be re-assigned.' },
+  { blocker_id:'b3', label:'Jordan hospital huddle', person_id:'p2',  start_slot:28, duration_minutes:60, modes:['normal','hard'],        notes:'Standing hospital sync that eats the lunch block. Jordan is fully unavailable.' },
+  { blocker_id:'b4', label:'Drew invoice review',    person_id:'p10', start_slot:38, duration_minutes:30, modes:['hard'],                 notes:'Drew has a late-afternoon invoice deadline. He will be offline during this window.' },
 ];
 
-const BLOCKER_SURPRISE_VARIANTS = [
-  {
-    easy: [
-      { blocker_id:'b5', label:'Alex lunch check-in', person_id:'p1', start_slot:20, duration_minutes:30, modes:['easy'], hidden_until:{ type:'scheduled_count', count:2 }, notes:'Alex slips a last-minute lunch check-in onto his calendar once the day starts filling up.' },
-    ],
-    normal: [
-      { blocker_id:'b6', label:'Alex vendor call', person_id:'p1', start_slot:21, duration_minutes:30, modes:['normal','hard'], hidden_until:{ type:'scheduled_count', count:2 }, notes:'This hold only appears once the calendar starts to fill up.' },
-      { blocker_id:'b7', label:'Jordan volunteer shift', person_id:'p2', start_slot:35, duration_minutes:45, modes:['normal','hard'], hidden_until:{ type:'scheduled_count', count:4 }, notes:'A surprise school volunteer shift appears after a few things are placed.' },
-      { blocker_id:'b8', label:'Riley band practice', person_id:'p3', start_slot:37, duration_minutes:45, modes:['normal','hard'], hidden_until:{ type:'scheduled_count', count:5 }, notes:'Riley also has band practice, which is the kind of detail that blows up the plan.' },
-    ],
-    hard: [
-      { blocker_id:'b9', label:'Taylor nap block', person_id:'p5', start_slot:24, duration_minutes:60, modes:['hard'], hidden_until:{ type:'scheduled_count', count:6 }, notes:'Taylor\'s afternoon nap block only surfaces once the day is already crowded.' },
-      { blocker_id:'b10', label:'Morgan pharmacy refill call', person_id:'p6', start_slot:30, duration_minutes:30, modes:['hard'], hidden_until:{ type:'scheduled_count', count:7 }, notes:'Morgan remembers a pharmacy refill call that shows up after a few placements.' },
-      { blocker_id:'b11', label:'Drew invoice follow-up', person_id:'p10', start_slot:40, duration_minutes:30, modes:['hard'], hidden_until:{ type:'scheduled_count', count:8 }, notes:'Drew has to call a client back before the office closes.' },
-    ],
-  },
-  {
-    easy: [
-      { blocker_id:'b12', label:'Jordan school emergency pickup', person_id:'p2', start_slot:26, duration_minutes:30, modes:['easy'], hidden_until:{ type:'scheduled_count', count:2 }, notes:'Jordan gets pulled into a quick school pickup that only appears once the board starts filling up.' },
-    ],
-    normal: [
-      { blocker_id:'b13', label:'Morgan bridge make-up', person_id:'p6', start_slot:27, duration_minutes:60, modes:['normal','hard'], hidden_until:{ type:'scheduled_count', count:2 }, notes:'Morgan agreed to a make-up bridge game that compresses the middle of the day.' },
-      { blocker_id:'b14', label:'Taylor pediatric follow-up', person_id:'p5', start_slot:31, duration_minutes:30, modes:['normal','hard'], hidden_until:{ type:'scheduled_count', count:4 }, notes:'Taylor needs a quick follow-up appointment that suddenly blocks a prime slot.' },
-      { blocker_id:'b15', label:'Alex supplier call', person_id:'p1', start_slot:39, duration_minutes:30, modes:['normal','hard'], hidden_until:{ type:'scheduled_count', count:5 }, notes:'Alex gets a supplier call that looks harmless until the schedule tightens up.' },
-    ],
-    hard: [
-      { blocker_id:'b16', label:'Riley rehearsal', person_id:'p3', start_slot:33, duration_minutes:45, modes:['hard'], hidden_until:{ type:'scheduled_count', count:3 }, notes:'Riley suddenly has rehearsal on top of everything else.' },
-      { blocker_id:'b17', label:'Jordan school volunteer shift', person_id:'p2', start_slot:36, duration_minutes:45, modes:['hard'], hidden_until:{ type:'scheduled_count', count:4 }, notes:'Jordan picks up a school volunteer shift that crowds the afternoon.' },
-      { blocker_id:'b18', label:'Alex payroll call', person_id:'p1', start_slot:20, duration_minutes:30, modes:['hard'], hidden_until:{ type:'scheduled_count', count:6 }, notes:'Alex has a payroll call that lands right in the middle of the workday.' },
-      { blocker_id:'b19', label:'Drew deadline run', person_id:'p10', start_slot:41, duration_minutes:30, modes:['hard'], hidden_until:{ type:'scheduled_count', count:7 }, notes:'Drew has to make a quick downtown run before a deadline.' },
-    ],
-  },
+// Surprise holds — randomly sampled each game; revealed once the day starts filling
+const BLOCKERS_SURPRISE_POOL = [
+  { blocker_id:'s1', label:'Alex vendor call',           person_id:'p1',  start_slot:21, duration_minutes:30, modes:['normal','hard'], trigger:2,  notes:'A vendor escalated a last-minute call. Alex is tied up and unavailable to drive or help.' },
+  { blocker_id:'s2', label:'Jordan volunteer shift',     person_id:'p2',  start_slot:35, duration_minutes:45, modes:['hard'],         trigger:4,  notes:'Jordan got pulled into a surprise school volunteer shift. She cannot take any task during this window.' },
+  { blocker_id:'s3', label:'Riley band rehearsal',       person_id:'p3',  start_slot:37, duration_minutes:45, modes:['hard'],         trigger:5,  notes:'Riley forgot she has band rehearsal. It directly collides with soccer logistics.' },
+  { blocker_id:'s4', label:'Taylor nap block',           person_id:'p5',  start_slot:24, duration_minutes:60, modes:['hard'],         trigger:6,  notes:"Taylor is down for her nap. Any task assigned to her caregiver during this window risks waking her." },
+  { blocker_id:'s5', label:'Alex phone consult',         person_id:'p1',  start_slot:17, duration_minutes:30, modes:['easy','normal','hard'], trigger:2, notes:'Doctor phone consultation that Alex completely forgot about. He is off the board until it finishes.' },
+  { blocker_id:'s6', label:'Jordan school pickup favor', person_id:'p2',  start_slot:31, duration_minutes:30, modes:['normal','hard'], trigger:3,  notes:'Jordan promised a neighbor she would pick up their kid. She is occupied and unavailable for other tasks.' },
+  { blocker_id:'s7', label:'Morgan afternoon nap',       person_id:'p6',  start_slot:32, duration_minutes:45, modes:['easy','normal','hard'], trigger:3, notes:'Morgan is resting. She already did a lot this morning and is unavailable for the afternoon window.' },
+  { blocker_id:'s8', label:'Drew HOA emergency call',    person_id:'p10', start_slot:30, duration_minutes:30, modes:['normal','hard'], trigger:3,  notes:'Surprise HOA meeting call pulled Drew away. He cannot take any tasks during this block.' },
+  { blocker_id:'s9', label:'Alex urgent code review',    person_id:'p1',  start_slot:33, duration_minutes:45, modes:['hard'],         trigger:5,  notes:'A production incident landed in Alex\'s lap. He is completely offline during this window.' },
+  { blocker_id:'s10',label:'Jordan nurse consult',       person_id:'p2',  start_slot:20, duration_minutes:45, modes:['hard'],         trigger:4,  notes:'A former patient called with an urgent question. Jordan is tied up and cannot be assigned anything.' },
+  { blocker_id:'s11',label:'Riley forgot lunch run',     person_id:'p1',  start_slot:25, duration_minutes:30, modes:['easy','normal','hard'], trigger:2, notes:'Riley called — she left her lunch at home. Alex needs to drive it over, eating a mid-morning slot.' },
+  { blocker_id:'s12',label:'Casey extra help session',   person_id:'p4',  start_slot:26, duration_minutes:45, modes:['normal','hard'], trigger:4,  notes:'Casey\'s teacher asked for an impromptu after-class help session. It materializes right in the middle of the afternoon.' },
 ];
 
-function buildBlockers(diff, variantIndex){
-  const variant=BLOCKER_SURPRISE_VARIANTS[variantIndex % BLOCKER_SURPRISE_VARIANTS.length] || BLOCKER_SURPRISE_VARIANTS[0];
-  return BLOCKER_BASE.concat((variant && variant[diff]) || []);
-}
+// How many surprise holds to pick per difficulty
+const SURPRISE_PICK = { easy:1, normal:2, hard:4 };
+
+const BLOCKERS_ALL = [...BLOCKERS_FIXED, ...BLOCKERS_SURPRISE_POOL];
 
 // ── grid constants ────────────────────────────────────────────────────────────
 const SH=7,EH=23,SMIN=15;
@@ -261,8 +244,7 @@ const EH_LABEL=(EH-12)+' PM';
 const SW=26;
 
 // ── state ─────────────────────────────────────────────────────────────────────
-const S={id:null,people:[],tasks:[],allTasks:[],sched:{},conflicts:new Set(),simDone:false,selTask:null,tab:'tasks',icsTasks:[],revealedBlockers:new Set(),blockers:[],diff:'normal'};
-let NEXT_BLOCKER_VARIANT = 0;
+const S={id:null,people:[],tasks:[],allTasks:[],sched:{},conflicts:new Set(),simDone:false,selTask:null,tab:'tasks',icsTasks:[],revealedBlockers:new Set(),gameBlockerIds:new Set(),diff:'normal'};
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const taskById=id=>S.allTasks.find(t=>t.task_id===id);
@@ -314,14 +296,30 @@ function diffTaskCount(diff){return (DIFF_TASKS[diff]||[]).length;}
 function slotOverlap(startA,durationA,startB,durationB){return startA<startB+durationB&&startA+durationA>startB;}
 function blockerSlotWidth(blocker){return Math.max(1,Math.ceil(blocker.duration_minutes/SMIN));}
 function blockerIsVisible(blocker){return !blocker.hidden_until||S.revealedBlockers.has(blocker.blocker_id);}
-function activeBlockers(){return (S.blockers||[]).filter(blocker=>blocker.modes.indexOf(S.diff)>=0&&blockerIsVisible(blocker));}
+function activeBlockers(){
+  return BLOCKERS_ALL.filter(blocker=>{
+    if(blocker.modes.indexOf(S.diff)<0) return false;
+    // Surprise holds only appear if selected for this game AND triggered
+    if(BLOCKERS_SURPRISE_POOL.find(s=>s.blocker_id===blocker.blocker_id)){
+      if(!S.gameBlockerIds.has(blocker.blocker_id)) return false;
+      return S.revealedBlockers.has(blocker.blocker_id);
+    }
+    return true; // fixed holds always visible
+  });
+}
+function pickGameBlockers(diff){
+  const eligible=BLOCKERS_SURPRISE_POOL.filter(b=>b.modes.indexOf(diff)>=0);
+  const count=SURPRISE_PICK[diff]||1;
+  return new Set(shuffle(eligible).slice(0,count).map(b=>b.blocker_id));
+}
 function updateRevealState(){
   const newlyRevealed=[];
   const scheduledCount=Object.keys(S.sched).length;
-  for(const blocker of S.blockers||[]){
-    if(blocker.modes.indexOf(S.diff)<0) continue;
+  for(const blocker of BLOCKERS_SURPRISE_POOL){
+    if(!S.gameBlockerIds.has(blocker.blocker_id)) continue;
     if(S.revealedBlockers.has(blocker.blocker_id)) continue;
-    if(blocker.hidden_until&&blocker.hidden_until.type==='scheduled_count'&&scheduledCount>=blocker.hidden_until.count){
+    const triggerCount=blocker.trigger||2;
+    if(scheduledCount>=triggerCount){
       S.revealedBlockers.add(blocker.blocker_id);
       newlyRevealed.push(blocker);
     }
@@ -358,9 +356,7 @@ function blockerHasConflict(blocker){
 function startGame(){
   const diff=S.diff;
   const tasks=shuffle(DIFF_TASKS[diff].map(id=>TASKS_ALL.find(t=>t.task_id===id)));
-  const blockerVariant=NEXT_BLOCKER_VARIANT;
-  NEXT_BLOCKER_VARIANT=(NEXT_BLOCKER_VARIANT+1)%BLOCKER_SURPRISE_VARIANTS.length;
-  Object.assign(S,{id:'local',people:PEOPLE,tasks,allTasks:tasks,sched:{},conflicts:new Set(),simDone:false,selTask:null,icsTasks:[],revealedBlockers:new Set(),blockers:buildBlockers(diff,blockerVariant)});
+  Object.assign(S,{id:'local',people:PEOPLE,tasks,allTasks:tasks,sched:{},conflicts:new Set(),simDone:false,selTask:null,icsTasks:[],revealedBlockers:new Set(),gameBlockerIds:pickGameBlockers(diff)});
   document.getElementById('app-status').textContent=DIFF_LABELS[diff];
   document.getElementById('pbadge').style.display='';
   document.getElementById('btn-sim').disabled=false;
@@ -377,7 +373,7 @@ function resetBoard(){
   S.sched={};S.conflicts=new Set();S.simDone=false;S.selTask=null;S.revealedBlockers=new Set();
   renderTaskPanel();renderPeoplePanel();refreshOverlays();updateBadge();
   document.getElementById('results').style.display='none';
-  toast('Board cleared -- same task order, fresh schedule.');
+  toast('Board cleared \u2014 same tasks and same surprise holds, fresh schedule.');
 }
 
 function renderAll(){renderTaskPanel();renderPeoplePanel();renderGrid();updateBadge();}
@@ -512,6 +508,7 @@ function refreshOverlays(){
     block.textContent=blocker.label.length>18?blocker.label.slice(0,16)+'\u2026':blocker.label;
     block.title=blockerTooltip(blocker);
     block.setAttribute('aria-label',blockerTooltip(blocker).replace(/\n/g,' '));
+    block.addEventListener('click',e=>e.stopPropagation());
     row.appendChild(block);
     for(let s=blocker.start_slot;s<blocker.start_slot+widthSlots&&s<SLOTS;s++){
       const sl=row.querySelector('[data-s="'+s+'"]');
