@@ -43,8 +43,11 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
 .tc.sel{background:rgba(124,106,247,.15);border-left:3px solid var(--accent);padding-left:8px}
 .tc.done{opacity:.55}
 .tc.done .tn::after{content:' \u21a9';font-size:10px;color:var(--accent);font-weight:400}
+.tc.landmine{border-left:3px solid rgba(239,68,68,.9);padding-left:8px;background:rgba(239,68,68,.07)}
+.tc.landmine.sel{background:rgba(239,68,68,.16)}
 .tn{font-weight:600;font-size:12px;line-height:1.3;margin-bottom:4px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .ics-badge{background:rgba(247,147,30,.2);color:var(--accent2);border:1px solid rgba(247,147,30,.35);border-radius:3px;font-size:9px;padding:1px 4px;font-weight:700;flex-shrink:0}
+.landmine-badge{background:rgba(239,68,68,.18);color:#fca5a5;border:1px solid rgba(239,68,68,.3);border-radius:3px;font-size:9px;padding:1px 4px;font-weight:700;flex-shrink:0}
 .tm{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:2px}
 .tm span{background:var(--surf2);border-radius:3px;padding:1px 5px;font-size:10px;color:var(--muted)}
 .tm .for-who{color:#a78bfa;background:rgba(167,139,250,.12);font-weight:600}
@@ -210,6 +213,15 @@ const DIFF_TASKS={
 };
 const DIFF_LABELS={easy:'Easy \u2014 10 tasks',normal:'Normal \u2014 14 tasks',hard:'Hard \u2014 22 tasks'};
 
+// Hidden required tasks that join the task list after scheduling starts
+const LANDMINE_POOL = [
+  { task_id:'lm1', description:'Forgotten permission slip', duration_minutes:15, location:'home', resource_id:null, for_person_id:'p4', travel_minutes:0, is_ics:false, is_landmine:true, modes:['easy','normal','hard'], hidden_until:{ type:'scheduled_count', count:1 }, notes:'Casey suddenly remembers a school form that must be signed before the day gets away.' },
+  { task_id:'lm2', description:'Emergency lunch drop-off', duration_minutes:20, location:'school', resource_id:'family_car', for_person_id:'p3', travel_minutes:15, is_ics:false, is_landmine:true, modes:['easy','normal','hard'], hidden_until:{ type:'scheduled_count', count:2 }, notes:'Riley forgot lunch and now somebody has to make a rescue run.' },
+  { task_id:'lm3', description:'Unexpected pharmacy paperwork', duration_minutes:30, location:'pharmacy', resource_id:'family_car', for_person_id:'p7', travel_minutes:20, is_ics:false, is_landmine:true, modes:['normal','hard'], hidden_until:{ type:'scheduled_count', count:3 }, notes:'Sam needs extra paperwork handled before his refill can happen.' },
+  { task_id:'lm4', description:'Neighborhood emergency favor', duration_minutes:45, location:'downtown', resource_id:null, for_person_id:'p10', travel_minutes:10, is_ics:false, is_landmine:true, modes:['hard'], hidden_until:{ type:'scheduled_count', count:4 }, notes:'Drew gets pulled into an urgent favor that was nowhere on the visible board.' },
+];
+const LANDMINE_PICK = { easy:1, normal:1, hard:2 };
+
 // Fixed holds — always visible from game start
 const BLOCKERS_FIXED = [
   { blocker_id:'b1', label:'Alex client review',    person_id:'p1',  start_slot:14, duration_minutes:45, modes:['easy','normal','hard'], notes:"Already on Alex's calendar. He can't be moved or given anything else during this window." },
@@ -246,7 +258,7 @@ const EH_LABEL=(EH-12)+' PM';
 const SW=26;
 
 // ── state ─────────────────────────────────────────────────────────────────────
-const S={id:null,people:[],tasks:[],allTasks:[],sched:{},conflicts:new Set(),simDone:false,selTask:null,tab:'tasks',icsTasks:[],revealedBlockers:new Set(),gameBlockerIds:new Set(),diff:'normal'};
+const S={id:null,people:[],tasks:[],allTasks:[],sched:{},conflicts:new Set(),simDone:false,selTask:null,tab:'tasks',icsTasks:[],revealedBlockers:new Set(),revealedLandmineTasks:[],gameBlockerIds:new Set(),gameLandmineIds:new Set(),diff:'normal'};
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const taskById=id=>S.allTasks.find(t=>t.task_id===id);
@@ -256,6 +268,7 @@ const slotMin=s=>SH*60+s*SMIN;
 function slotLabel(s){const m=slotMin(s),h=Math.floor(m/60),mn=m%60;return(h>12?h-12:h)+(mn?':'+String(mn).padStart(2,'0'):'')+(h<12?'a':'p');}
 function escH(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function shuffle(arr){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function syncAllTasks(){S.allTasks=[...S.tasks,...S.icsTasks,...S.revealedLandmineTasks];}
 function formatClock(totalMinutes){
   const hours24=Math.floor(totalMinutes/60);
   const hours12=hours24%12||12;
@@ -268,20 +281,24 @@ function formatTimeRange(startMinutes,durationMinutes){
 function taskTooltip(task,startSlot){
   const parts=[
     task.description,
-    'Duration: '+task.duration_minutes+' min',
-    'Location: '+(task.location||'home'),
   ];
   if(startSlot!==null&&startSlot!==undefined){
     parts.splice(1,0,'Time: '+formatTimeRange(slotMin(startSlot),task.duration_minutes));
   }else{
     parts.splice(1,0,'Status: '+(S.sched[task.task_id]?'Placed on calendar':'Not yet placed'));
   }
+  parts.push('Duration: '+task.duration_minutes+' min');
+  parts.push('Location: '+(task.location||'home'));
   if(task.for_person_id){
     const p=personById(task.for_person_id);
     parts.push('For: '+(p?p.name:task.for_person_id));
   }
   if(task.travel_minutes>0)parts.push('Travel: ~'+task.travel_minutes+' min');
   if(task.resource_id)parts.push('Resource: '+task.resource_id);
+  if(task.is_landmine){
+    parts.push('Surprise: hidden required task');
+    if(task.hidden_until&&task.hidden_until.count)parts.push('Reveal trigger: after '+task.hidden_until.count+' scheduled tasks');
+  }
   if(task.notes)parts.push('Notes: '+task.notes);
   if(task.is_ics)parts.push('Imported from .ics');
   return parts.join('\n');
@@ -320,6 +337,11 @@ function diffTaskCount(diff){return (DIFF_TASKS[diff]||[]).length;}
 function slotOverlap(startA,durationA,startB,durationB){return startA<startB+durationB&&startA+durationA>startB;}
 function blockerSlotWidth(blocker){return Math.max(1,Math.ceil(blocker.duration_minutes/SMIN));}
 function blockerIsVisible(blocker){return !blocker.hidden_until||S.revealedBlockers.has(blocker.blocker_id);}
+function pickGameLandmines(diff){
+  const eligible=LANDMINE_POOL.filter(task=>task.modes.indexOf(diff)>=0);
+  const count=LANDMINE_PICK[diff]||1;
+  return new Set(shuffle(eligible).slice(0,count).map(task=>task.task_id));
+}
 function activeBlockers(){
   return BLOCKERS_ALL.filter(blocker=>{
     if(blocker.modes.indexOf(S.diff)<0) return false;
@@ -339,13 +361,24 @@ function pickGameBlockers(diff){
 function updateRevealState(){
   const newlyRevealed=[];
   const scheduledCount=Object.keys(S.sched).length;
+  for(const task of LANDMINE_POOL){
+    if(!S.gameLandmineIds.has(task.task_id)) continue;
+    if(S.revealedLandmineTasks.some(t=>t.task_id===task.task_id)) continue;
+    const triggerCount=task.hidden_until&&task.hidden_until.type==='scheduled_count'?task.hidden_until.count:1;
+    if(scheduledCount>=triggerCount){
+      const revealedTask={...task};
+      S.revealedLandmineTasks.push(revealedTask);
+      syncAllTasks();
+      newlyRevealed.push({kind:'landmine',item:revealedTask});
+    }
+  }
   for(const blocker of BLOCKERS_SURPRISE_POOL){
     if(!S.gameBlockerIds.has(blocker.blocker_id)) continue;
     if(S.revealedBlockers.has(blocker.blocker_id)) continue;
     const triggerCount=blocker.trigger||2;
     if(scheduledCount>=triggerCount){
       S.revealedBlockers.add(blocker.blocker_id);
-      newlyRevealed.push(blocker);
+      newlyRevealed.push({kind:'blocker',item:blocker});
     }
   }
   return newlyRevealed;
@@ -380,7 +413,8 @@ function blockerHasConflict(blocker){
 function startGame(){
   const diff=S.diff;
   const tasks=shuffle(DIFF_TASKS[diff].map(id=>TASKS_ALL.find(t=>t.task_id===id)));
-  Object.assign(S,{id:'local',people:PEOPLE,tasks,allTasks:tasks,sched:{},conflicts:new Set(),simDone:false,selTask:null,icsTasks:[],revealedBlockers:new Set(),gameBlockerIds:pickGameBlockers(diff)});
+  Object.assign(S,{id:'local',people:PEOPLE,tasks,allTasks:tasks,sched:{},conflicts:new Set(),simDone:false,selTask:null,icsTasks:[],revealedBlockers:new Set(),revealedLandmineTasks:[],gameBlockerIds:pickGameBlockers(diff),gameLandmineIds:pickGameLandmines(diff)});
+  syncAllTasks();
   document.getElementById('app-status').textContent=DIFF_LABELS[diff];
   document.getElementById('pbadge').style.display='';
   document.getElementById('btn-sim').disabled=false;
@@ -389,15 +423,15 @@ function startGame(){
   document.getElementById('results').style.display='none';
   document.getElementById('ics-input').onchange=onICSFile;
   renderAll();
-  const msg=diff==='easy'?'10 tasks today -- a manageable day.':diff==='hard'?'22 tasks! The calendar is packed and surprise holds will appear.':'14 tasks -- a typical hectic family day with some calendar holds.';
+  const msg=diff==='easy'?'10 tasks today -- a manageable day, with one hidden landmine waiting to surface.':diff==='hard'?'22 tasks! The calendar is packed and surprise holds plus hidden landmines will appear.':'14 tasks -- a typical hectic family day with some surprise holds and at least one hidden landmine.';
   toast('Game started! '+msg);
 }
 
 function resetBoard(){
-  S.sched={};S.conflicts=new Set();S.simDone=false;S.selTask=null;S.revealedBlockers=new Set();
+  S.sched={};S.conflicts=new Set();S.simDone=false;S.selTask=null;S.revealedBlockers=new Set();S.revealedLandmineTasks=[];syncAllTasks();
   renderTaskPanel();renderPeoplePanel();refreshOverlays();updateBadge();
   document.getElementById('results').style.display='none';
-  toast('Board cleared \u2014 same tasks and same surprise holds, fresh schedule.');
+  toast('Board cleared \u2014 same tasks, surprise holds, and hidden landmines, fresh schedule.');
 }
 
 function renderAll(){renderTaskPanel();renderPeoplePanel();renderGrid();updateBadge();}
@@ -425,9 +459,10 @@ function renderTaskPanel(){
     if(t.travel_minutes>0)meta+='<span>~'+t.travel_minutes+'min drive</span>';
     if(t.resource_id)meta+='<span class="res">'+escH(t.resource_id)+'</span>';
     const icsBadge=t.is_ics?'<span class="ics-badge">ICS</span>':'';
+    const landmineBadge=t.is_landmine?'<span class="landmine-badge">BOOM</span>':'';
     const notesDiv=t.notes?'<div class="tc-notes">'+escH(t.notes)+'</div>':'';
-    return '<div class="tc'+(done?' done':'')+(sel?' sel':'')+'" data-tid="'+t.task_id+'">'+
-      '<div class="tn">'+escH(t.description)+icsBadge+'</div>'+
+    return '<div class="tc'+(done?' done':'')+(sel?' sel':'')+(t.is_landmine?' landmine':'')+'" data-tid="'+t.task_id+'">'+
+      '<div class="tn">'+escH(t.description)+icsBadge+landmineBadge+'</div>'+
       '<div class="tm">'+meta+'</div>'+notesDiv+'</div>';
   }).join('');
   const panel=document.getElementById('tasks-panel');
@@ -578,7 +613,15 @@ function assignSlot(personId,slot){
   const newlyRevealed=updateRevealState();
   renderTaskPanel();renderPeoplePanel();refreshOverlays();updateBadge();
   document.getElementById('results').style.display='none';
-  if(newlyRevealed.length){toast('New calendar hold revealed: '+newlyRevealed[0].label+'.');}
+  if(newlyRevealed.length){
+    const landmine=newlyRevealed.find(item=>item.kind==='landmine');
+    const first=newlyRevealed[0];
+    if(landmine){
+      toast('BOOM: hidden task revealed -- '+landmine.item.description+'.');
+    }else if(first&&first.kind==='blocker'){
+      toast('New calendar hold revealed: '+first.item.label+'.');
+    }
+  }
 }
 
 function isOccupied(personId,slot,durationMin){
@@ -711,7 +754,7 @@ function onICSFile(ev){const f=ev.target.files[0];if(!f)return;const r=new FileR
 function processICS(text){
   const events=parseICS(text);if(!events.length){toast('No events found.',true);return;}
   const added=events.map((ev,i)=>({task_id:'ics_'+Date.now()+'_'+i,description:ev.summary,is_ics:true,duration_minutes:Math.max(15,Math.min(ev.duration,480)),location:ev.location||'home',resource_id:null,for_person_id:null,travel_minutes:0,notes:ev.description||''}));
-  S.icsTasks=[...S.icsTasks,...added];S.allTasks=[...S.tasks,...S.icsTasks];
+  S.icsTasks=[...S.icsTasks,...added];syncAllTasks();
   renderTaskPanel();updateBadge();toast(added.length+' event(s) imported.');
 }
 function parseICS(text){
