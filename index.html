@@ -236,6 +236,44 @@ const slotMin=s=>SH*60+s*SMIN;
 function slotLabel(s){const m=slotMin(s),h=Math.floor(m/60),mn=m%60;return(h>12?h-12:h)+(mn?':'+String(mn).padStart(2,'0'):'')+(h<12?'a':'p');}
 function escH(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function shuffle(arr){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function formatClock(totalMinutes){
+  const hours24=Math.floor(totalMinutes/60);
+  const hours12=hours24%12||12;
+  const minutes=String(totalMinutes%60).padStart(2,'0');
+  return hours12+':'+minutes+(hours24<12?'a':'p');
+}
+function formatTimeRange(startMinutes,durationMinutes){
+  return formatClock(startMinutes)+' - '+formatClock(startMinutes+durationMinutes);
+}
+function taskTooltip(task,startSlot){
+  const startMinutes=slotMin(startSlot);
+  const parts=[
+    task.description,
+    'Time: '+formatTimeRange(startMinutes,task.duration_minutes),
+    'Duration: '+task.duration_minutes+' min',
+    'Location: '+(task.location||'home'),
+  ];
+  if(task.for_person_id){
+    const p=personById(task.for_person_id);
+    parts.push('For: '+(p?p.name:task.for_person_id));
+  }
+  if(task.travel_minutes>0)parts.push('Travel: ~'+task.travel_minutes+' min');
+  if(task.resource_id)parts.push('Resource: '+task.resource_id);
+  if(task.notes)parts.push('Notes: '+task.notes);
+  if(task.is_ics)parts.push('Imported from .ics');
+  return parts.join('\n');
+}
+function blockerTooltip(blocker){
+  const person=personById(blocker.person_id);
+  const parts=[
+    blocker.label,
+    'Time: '+formatTimeRange(slotMin(blocker.start_slot),blocker.duration_minutes),
+    'Person: '+(person?person.name:blocker.person_id),
+  ];
+  if(blocker.notes)parts.push('Notes: '+blocker.notes);
+  if(blocker.hidden_until)parts.push('Appears once the calendar starts filling up');
+  return parts.join('\n');
+}
 function diffTaskCount(diff){return (DIFF_TASKS[diff]||[]).length;}
 function slotOverlap(startA,durationA,startB,durationB){return startA<startB+durationB&&startA+durationA>startB;}
 function blockerSlotWidth(blocker){return Math.max(1,Math.ceil(blocker.duration_minutes/SMIN));}
@@ -415,7 +453,8 @@ function refreshOverlays(){
     block.style.width=(wSlots*SW-2)+'px';
     const lbl=task.description.length>18?task.description.slice(0,16)+'\u2026':task.description;
     block.textContent=lbl;
-    block.title=task.description+' ('+task.duration_minutes+'m) -- tap to move';
+    block.title=taskTooltip(task,ev.slot);
+    block.setAttribute('aria-label',taskTooltip(task,ev.slot).replace(/\n/g,' '));
     block.addEventListener('click',e=>{e.stopPropagation();pickupEvent(tid);});
     row.appendChild(block);
     for(let s=ev.slot;s<ev.slot+wSlots&&s<SLOTS;s++){
@@ -433,7 +472,8 @@ function refreshOverlays(){
     block.style.left=(blocker.start_slot*SW)+'px';
     block.style.width=(widthSlots*SW-2)+'px';
     block.textContent=blocker.label.length>18?blocker.label.slice(0,16)+'\u2026':blocker.label;
-    block.title=blocker.label+' — '+blocker.notes+(blocker.hidden_until?' (surprise hold revealed as the day fills up)':'');
+    block.title=blockerTooltip(blocker);
+    block.setAttribute('aria-label',blockerTooltip(blocker).replace(/\n/g,' '));
     row.appendChild(block);
     for(let s=blocker.start_slot;s<blocker.start_slot+widthSlots&&s<SLOTS;s++){
       const sl=row.querySelector('[data-s="'+s+'"]');
