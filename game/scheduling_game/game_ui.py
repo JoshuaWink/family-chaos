@@ -83,7 +83,7 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
 .g-slots{display:flex;position:relative;height:100%;flex:1}
 .g-slot{width:var(--slot-w);height:100%;border-right:1px solid var(--surf2);flex-shrink:0;transition:background .1s;cursor:pointer}
 .g-slot:hover{background:rgba(124,106,247,.12)}.g-slot.blocked{cursor:default;pointer-events:none}
-.ev{position:absolute;top:3px;height:calc(100% - 6px);background:var(--accent);border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:9px;font-weight:700;white-space:nowrap;overflow:hidden;z-index:2;pointer-events:none;border:1px solid rgba(255,255,255,.1)}
+.ev{position:absolute;top:3px;height:calc(100% - 6px);background:var(--accent);border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:9px;font-weight:700;white-space:nowrap;overflow:hidden;z-index:2;pointer-events:auto;cursor:grab;border:1px solid rgba(255,255,255,.1)}
 .ev.conflict{background:var(--danger)}.ev.ok{background:var(--success)}
 /* person overlay */
 #pov{display:none;position:fixed;z-index:100;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:18px 18px 14px;width:288px;box-shadow:0 8px 30px rgba(0,0,0,.6);max-height:76vh;overflow-y:auto}
@@ -122,7 +122,7 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
     <div class="tab-body" id="tasks-panel">
       <p style="padding:14px;color:var(--muted);font-size:11px;line-height:1.7">
         Press <strong style="color:var(--text)">New Game</strong> to load the Smith family scenario.
-        Select a task, then click a time slot in the grid to assign it.
+        Select a task, then click a slot to place it. Click a placed block to pick it up and move it. Press Esc to deselect.
       </p>
     </div>
     <div class="tab-body" id="people-panel" style="display:none">
@@ -146,8 +146,9 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
 </div>
 <script>
 const DATE = '2026-06-15';
-const SH = 7, EH = 21, SMIN = 30;
+const SH = 7, EH = 23, SMIN = 30;
 const SLOTS = (EH - SH) * 60 / SMIN;
+const EH_LABEL = (EH - 12) + ' PM';
 const SW = 44;
 
 const S = {
@@ -339,7 +340,8 @@ function refreshOverlays() {
     block.style.width = (wSlots * SW - 2) + 'px';
     const label = task.description.length > 20 ? task.description.slice(0, 18) + '\u2026' : task.description;
     block.textContent = label;
-    block.title = task.description + ' (' + task.duration_minutes + 'm)';
+    block.title = task.description + ' (' + task.duration_minutes + 'm) \u2014 click to move';
+    block.addEventListener('click', e => { e.stopPropagation(); pickupEvent(tid); });
     row.appendChild(block);
     for (let s = ev.slot; s < ev.slot + wSlots && s < SLOTS; s++) {
       const sl = row.querySelector('[data-s="' + s + '"]');
@@ -356,13 +358,23 @@ function pickTask(id) {
   renderTaskPanel();
 }
 
+function pickupEvent(tid) {
+  delete S.sched[tid];
+  S.selTask = tid;
+  S.simDone = false;
+  S.conflicts = new Set();
+  renderTaskPanel(); renderPeoplePanel(); refreshOverlays(); updateBadge();
+  document.getElementById('results').style.display = 'none';
+  toast('Picked up \u2014 click a new slot to place, or Esc to cancel.');
+}
+
 async function assignSlot(personId, slot) {
   if (!S.selTask) { toast('Select a task from the left panel first.'); return; }
   const tid = S.selTask;
   const task = taskById(tid);
   if (!task || S.sched[tid]) return;
   const wSlots = Math.ceil(task.duration_minutes / SMIN);
-  if (slot + wSlots > SLOTS) { toast('Task extends past 9 PM \u2014 pick an earlier slot.', true); return; }
+  if (slot + wSlots > SLOTS) { toast('Task extends past ' + EH_LABEL + ' \u2014 pick an earlier slot.', true); return; }
   if (isOccupied(personId, slot, task.duration_minutes)) {
     toast('That person is already busy at that time.', true); return;
   }
@@ -429,6 +441,13 @@ document.addEventListener('click', e => {
   const ov = document.getElementById('pov');
   if (ov.style.display !== 'none' && !ov.contains(e.target) && !e.target.closest('[data-gpid]')) {
     ov.style.display = 'none';
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && S.selTask) {
+    S.selTask = null;
+    renderTaskPanel();
+    toast('Deselected \u2014 task not placed.');
   }
 });
 
