@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#0f1117">
+<title>Family Chaos — Scheduling Game</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0f1117;--surf:#1a1d27;--surf2:#242838;--border:#2e3248;
+  --accent:#7c6af7;--accent2:#f7931e;--text:#e2e8f0;--muted:#6b7280;
+  --danger:#ef4444;--success:#22c55e;--warn:#f59e0b;
+  --slot-w:44px;--row-h:46px;--name-w:176px;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:13px;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0}
+.logo{font-size:16px;font-weight:800;color:var(--accent);flex:1;min-width:140px}
+.badge{background:var(--surf2);border:1px solid var(--border);border-radius:5px;padding:2px 8px;font-size:11px;color:var(--muted)}
+.btn{padding:6px 12px;border-radius:6px;border:1px solid transparent;font-size:12px;font-weight:700;cursor:pointer;transition:all .12s;white-space:nowrap;touch-action:manipulation}
+.btn-p{background:var(--accent);color:#fff}.btn-p:hover{background:#6859e0}
+.btn-g{background:#16a34a;color:#fff}.btn-g:hover{background:#15803d}
+.btn-o{background:var(--surf2);color:var(--text);border-color:var(--border)}.btn-o:hover{background:var(--border)}
+.btn-r{background:rgba(239,68,68,.15);color:var(--danger);border-color:rgba(239,68,68,.3)}.btn-r:hover{background:rgba(239,68,68,.25)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.ws{display:flex;flex:1;min-height:0;overflow:hidden}
+#left{width:272px;min-width:220px;background:var(--surf);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{flex:1;padding:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);cursor:pointer;text-align:center;border-bottom:2px solid transparent;transition:all .12s;touch-action:manipulation}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-body{overflow-y:auto;flex:1}
+.tc{padding:9px 11px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;user-select:none;touch-action:manipulation}
+.tc:hover,.tc:active{background:var(--surf2)}
+.tc.sel{background:rgba(124,106,247,.15);border-left:3px solid var(--accent);padding-left:8px}
+.tc.done{opacity:.55}
+.tc.done .tn::after{content:' ↩';font-size:10px;color:var(--accent);font-weight:400}
+.tn{font-weight:600;font-size:12px;line-height:1.3;margin-bottom:4px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.ics-badge{background:rgba(247,147,30,.2);color:var(--accent2);border:1px solid rgba(247,147,30,.35);border-radius:3px;font-size:9px;padding:1px 4px;font-weight:700;flex-shrink:0}
+.tm{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:2px}
+.tm span{background:var(--surf2);border-radius:3px;padding:1px 5px;font-size:10px;color:var(--muted)}
+.tm .for-who{color:#a78bfa;background:rgba(167,139,250,.12);font-weight:600}
+.tm .res{color:var(--accent2)}
+.tc-notes{font-size:10px;color:var(--muted);line-height:1.6;margin-top:5px;padding-top:5px;border-top:1px solid var(--border);display:none}
+.tc.sel .tc-notes{display:block}
+.pc{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;transition:background .1s;touch-action:manipulation}
+.pc:hover{background:var(--surf2)}
+.pc.act{background:rgba(124,106,247,.1);border-left:3px solid var(--accent);padding-left:9px}
+.pc-head{display:flex;align-items:center;gap:5px;margin-bottom:2px}
+.pc-name{font-weight:700;font-size:12px;flex:1}
+.age-badge{background:var(--surf2);border:1px solid var(--border);border-radius:10px;font-size:10px;padding:1px 6px;color:var(--muted)}
+.pc-occ{font-size:10px;color:var(--muted);margin-bottom:2px}
+.pc-sched{font-size:10px;color:var(--muted);margin-bottom:2px}
+.pc-drive{font-size:10px;margin-bottom:2px}
+.dy{color:var(--success)}.dn{color:var(--danger)}
+.pc-detail{display:none;margin-top:5px;padding-top:5px;border-top:1px solid var(--border)}
+.pc.act .pc-detail{display:block}
+.pc-bio{font-size:10px;color:var(--muted);line-height:1.6;margin-bottom:5px}
+.pc-likes{font-size:10px;color:var(--muted)}.pc-likes em{color:var(--accent);font-style:normal}
+.pc-load{font-size:10px;color:var(--muted);margin-top:4px}
+#grid-area{flex:1;overflow:auto;min-height:0;min-width:0}
+.hint{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:var(--muted);text-align:center;padding:32px}
+.hint p{font-size:15px;color:var(--text);font-weight:600}
+.hint small{font-size:12px;max-width:300px;line-height:1.5}
+.grid-wrap{padding:10px 14px;min-width:max-content}
+.g-head{display:flex;padding-left:var(--name-w)}
+.g-tlabel{width:var(--slot-w);font-size:9px;color:var(--muted);text-align:center;flex-shrink:0;padding-bottom:3px;border-right:1px solid var(--surf2)}
+.g-row{display:flex;border-bottom:1px solid var(--border);height:var(--row-h)}.g-row:last-child{border-bottom:none}
+.g-name{width:var(--name-w);min-width:var(--name-w);display:flex;align-items:center;gap:5px;padding:0 8px;font-size:11px;font-weight:600;border-right:1px solid var(--border);background:var(--surf);flex-shrink:0;cursor:pointer;height:100%;transition:background .1s;touch-action:manipulation}
+.g-name:hover,.g-name:active{background:var(--surf2)}
+.g-name-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hap{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--muted);transition:background .3s}
+.nd{font-size:9px;color:var(--danger);flex-shrink:0;cursor:default}
+.g-slots{display:flex;position:relative;height:100%;flex:1}
+.g-slot{width:var(--slot-w);height:100%;border-right:1px solid var(--surf2);flex-shrink:0;transition:background .1s;cursor:pointer;touch-action:manipulation}
+.g-slot:hover,.g-slot:active{background:rgba(124,106,247,.12)}
+.g-slot.blocked{cursor:default;pointer-events:none}
+.ev{position:absolute;top:3px;height:calc(100% - 6px);background:var(--accent);border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:9px;font-weight:700;white-space:nowrap;overflow:hidden;z-index:2;pointer-events:auto;cursor:grab;border:1px solid rgba(255,255,255,.1);touch-action:manipulation}
+.ev:hover{filter:brightness(1.1)}
+.ev.conflict{background:var(--danger)}.ev.ok{background:var(--success)}
+#pov{display:none;position:fixed;z-index:100;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:18px 18px 14px;width:288px;box-shadow:0 8px 30px rgba(0,0,0,.6);max-height:76vh;overflow-y:auto}
+.pov-close{position:absolute;top:10px;right:12px;cursor:pointer;color:var(--muted);font-size:18px;background:none;border:none;line-height:1;padding:0;touch-action:manipulation}
+.pov-name{font-size:15px;font-weight:800;color:var(--text);margin-bottom:1px}
+.pov-sub{font-size:11px;color:var(--muted);margin-bottom:10px}
+.pov-sec{margin-top:9px}
+.pov-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:3px}
+.pov-val{font-size:11px;color:var(--text);line-height:1.6}
+#results{background:var(--surf);border-top:1px solid var(--border);padding:10px 14px;max-height:160px;overflow-y:auto;flex-shrink:0}
+#results h3{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px}
+.citem{background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.22);border-radius:5px;padding:6px 10px;margin-bottom:4px;font-size:11px;color:#fca5a5;line-height:1.5}
+.valid-msg{color:var(--success);font-weight:700;font-size:13px}
+.info{color:var(--muted);font-size:11px;margin-top:5px}
+.toast{position:fixed;bottom:20px;right:20px;background:#1a2035;border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-size:12px;z-index:999;max-width:280px;line-height:1.4;pointer-events:none}
+.toast.err{border-color:var(--danger);color:#fca5a5}
+@media(max-width:600px){
+  #left{width:230px;min-width:180px}
+  .logo{font-size:14px}
+  .btn{padding:5px 9px;font-size:11px}
+  #pov{width:calc(100vw - 32px);left:16px!important;right:16px!important}
+}
+</style>
+</head>
+<body>
+<header>
+  <span class="logo" id="app-title">&#128197; Family Chaos</span>
+  <span class="badge" id="app-status">Ready to play</span>
+  <span class="badge" id="pbadge" style="display:none">0/12 scheduled</span>
+  <input type="file" id="ics-input" accept=".ics" style="display:none">
+  <button class="btn btn-o" id="btn-ics" disabled title="Import events from a Google Calendar .ics export">&#128197; Import .ics</button>
+  <button class="btn btn-r" id="btn-reset" disabled>&#8635; Reset</button>
+  <button class="btn btn-p" id="btn-new">New Game</button>
+  <button class="btn btn-g" id="btn-sim" disabled>&#9654; Simulate</button>
+</header>
+<div class="ws">
+  <div id="left">
+    <div class="tabs">
+      <div class="tab on" id="tab-tasks">Tasks</div>
+      <div class="tab" id="tab-people">People</div>
+    </div>
+    <div class="tab-body" id="tasks-panel">
+      <p style="padding:14px;color:var(--muted);font-size:11px;line-height:1.7">
+        Press <strong style="color:var(--text)">New Game</strong> to load the Smith family scenario.
+        Select a task, then tap a time slot to place it. Tap a placed block to move it. Press Esc to deselect.
+      </p>
+    </div>
+    <div class="tab-body" id="people-panel" style="display:none">
+      <p style="padding:14px;color:var(--muted);font-size:11px;line-height:1.7">
+        Press <strong style="color:var(--text)">New Game</strong> to meet the Smith family.
+        Tap any person card to expand their profile.
+      </p>
+    </div>
+  </div>
+  <div id="grid-area">
+    <div class="hint" id="grid-hint">
+      <p>Press New Game to begin</p>
+      <small>Schedule 12 tasks across 10 family members and helpers. Select a task in the panel, tap a person&#39;s time slot to assign it, then Simulate to check for conflicts.</small>
+    </div>
+  </div>
+</div>
+<div id="results" style="display:none"></div>
+<div id="pov">
+  <button class="pov-close" id="pov-close">&#10005;</button>
+  <div id="pov-content"></div>
+</div>
+
+<script>
+// ── scenario data ─────────────────────────────────────────────────────────────
+const SCENARIO = {
+  people: [
+    { person_id:'p1', name:'Alex (Dad)', home_location:'home', age:42, can_drive:true,
+      occupation:'Software Engineer', work_schedule:'WFH Mon–Fri, 9 am–5 pm',
+      bio:`Alex is the primary breadwinner working remotely. He has flexibility between meetings but his 9 am stand-up is non-negotiable. Great cook and loves being involved in the kids' activities on weekends.`,
+      likes:'hiking, gaming, weekend BBQs, cooking new recipes', primary_driver_id:null },
+    { person_id:'p2', name:'Jordan (Mom)', home_location:'home', age:40, can_drive:true,
+      occupation:'Part-time Nurse', work_schedule:'Tues, Thurs, Sat — 7 am to 3 pm',
+      bio:`Jordan works three hospital shifts a week. On off-days she manages the household, coordinates the kids' schedules, and tries to squeeze in a yoga class. She knows everyone's routines better than anyone.`,
+      likes:'reading, yoga, gardening, true crime podcasts', primary_driver_id:null },
+    { person_id:'p3', name:'Riley (Kid A)', home_location:'home', age:14, can_drive:false,
+      occupation:'8th Grade Student', work_schedule:'School Mon–Fri, 7:45 am–3:00 pm',
+      bio:`Riley is an energetic 8th grader who loves soccer and recently started piano. She needs rides to both activities and gets anxious if she misses practice. Very independent but still needs adult transport.`,
+      likes:'soccer, piano, video games, graphic novels', primary_driver_id:'p1' },
+    { person_id:'p4', name:'Casey (Kid B)', home_location:'home', age:7, can_drive:false,
+      occupation:'2nd Grade Student', work_schedule:'School Mon–Fri, 8:15 am–2:45 pm',
+      bio:`Casey is a curious 7-year-old obsessed with dinosaurs and Legos. He's been struggling with multiplication and has weekly tutoring with Avery. Loves piano lessons too — Ms. Chen says he has great rhythm.`,
+      likes:'dinosaurs, Legos, drawing, piano, math puzzles', primary_driver_id:'p2' },
+    { person_id:'p5', name:'Taylor (Kid C)', home_location:'home', age:4, can_drive:false,
+      occupation:'Preschooler', work_schedule:'Preschool Mon–Fri, 9:00 am–12:00 pm',
+      bio:`Taylor is the youngest Smith and full of energy. She loves dancing and toy trucks. Dentist visits are a battle — she needs a parent she trusts to stay calm. Naps are sacred from 1–3 pm.`,
+      likes:'dancing, toy trucks, storytime, singing, bubbles', primary_driver_id:'p2' },
+    { person_id:'p6', name:'Morgan (Grandma)', home_location:'grandma_house', age:68, can_drive:true,
+      occupation:'Retired Teacher', work_schedule:'Fully flexible — prefers mornings',
+      bio:`Morgan is a retired elementary teacher who lives 15 minutes away. She's a huge help but prefers not to drive on highways or after dark. She loves the grandkids but needs notice before babysitting.`,
+      likes:'gardening, baking, crossword puzzles, game shows', primary_driver_id:null },
+    { person_id:'p7', name:'Sam (Grandpa)', home_location:'grandma_house', age:70, can_drive:false,
+      occupation:'Retired', work_schedule:'Fully flexible',
+      bio:`Sam retired 3 years ago after a minor stroke that left him unable to drive safely. He manages well at home with Morgan, but needs someone to pick up his monthly prescriptions from Walgreens.`,
+      likes:'chess, baseball, history books, morning crosswords', primary_driver_id:'p6' },
+    { person_id:'p8', name:'Jamie (Coach)', home_location:'gym', age:35, can_drive:true,
+      occupation:'Soccer Coach / Personal Trainer', work_schedule:'Runs practice 4:00–5:30 pm, flexible otherwise',
+      bio:`Jamie coaches Riley's soccer team and is extremely reliable. Not a family member but often helps coordinate logistics around practice days.`,
+      likes:'fitness, outdoor sports, nutrition, coaching youth', primary_driver_id:null },
+    { person_id:'p9', name:'Avery (Tutor)', home_location:'library', age:28, can_drive:true,
+      occupation:'Freelance Math Tutor', work_schedule:'Available most weekdays, sessions by appointment',
+      bio:`Avery tutors Casey twice a week at the public library. Very patient and uses game-based teaching. Sessions are 60 min and need advance booking. Casey has been making great progress.`,
+      likes:'math puzzles, hiking, board games, teaching', primary_driver_id:null },
+    { person_id:'p10', name:'Drew (Neighbor)', home_location:'neighborhood', age:45, can_drive:true,
+      occupation:'Works from Home (Accountant)', work_schedule:'WFH Mon–Fri, very flexible',
+      bio:`Drew is the Smiths' helpful neighbor three houses down. Has offered to help with emergency pickups. Reliable but shouldn't be over-relied on — he has his own work deadlines.`,
+      likes:'DIY projects, neighborhood watch, cooking, gardening', primary_driver_id:null },
+  ],
+  tasks: [
+    { task_id:'t1', description:'Drop Riley at school', duration_minutes:20, location:'school',
+      resource_id:null, for_person_id:'p3', travel_minutes:20, is_ics:false,
+      notes:`Jefferson Middle starts at 7:45 am. Riley needs drop-off by 7:40 am. Requires a licensed driver. Pick-up is a separate task (t9).` },
+    { task_id:'t2', description:'Drop Casey at preschool', duration_minutes:20, location:'preschool',
+      resource_id:null, for_person_id:'p4', travel_minutes:20, is_ics:false,
+      notes:`Sunshine Elementary starts at 8:15 am. Casey can be dropped off together with Riley if the timing works — note they attend different schools.` },
+    { task_id:'t3', description:'Dentist appointment — Taylor', duration_minutes:60, location:'clinic',
+      resource_id:null, for_person_id:'p5', travel_minutes:30, is_ics:false,
+      notes:`Taylor's 6-month checkup at Dr. Park's Pediatric Dental. Appointment at 10 am — allow 30 min travel each way. Taylor needs a parent or trusted adult she's comfortable with.` },
+    { task_id:'t4', description:'Alex work stand-up', duration_minutes:30, location:'home_office',
+      resource_id:null, for_person_id:'p1', travel_minutes:0, is_ics:false,
+      notes:`Alex's non-negotiable 9:00–9:30 am engineering sync. Fully remote — no travel needed. He cannot drive or supervise kids during this window.` },
+    { task_id:'t5', description:'Riley soccer practice', duration_minutes:90, location:'field',
+      resource_id:'family_car', for_person_id:'p3', travel_minutes:25, is_ics:false,
+      notes:`Riley's team practices with Coach Jamie at Memorial Field. Practice runs 4:00–5:30 pm. Requires the family car for the 25-min drive.` },
+    { task_id:'t6', description:'Casey math tutoring', duration_minutes:60, location:'library',
+      resource_id:null, for_person_id:'p4', travel_minutes:15, is_ics:false,
+      notes:`Weekly session with Avery at the public library. Casey is working on multiplication. Sessions are 60 min; allow 15 min drive each way.` },
+    { task_id:'t7', description:'Weekly grocery run', duration_minutes:30, location:'market',
+      resource_id:'family_car', for_person_id:null, travel_minutes:20, is_ics:false,
+      notes:`Weekly groceries from Costco. ~30 min in-store + 20 min drive each way. Family car trunk needed for bulk items. Any licensed driver can do this.` },
+    { task_id:'t8', description:"Pick up Sam's prescriptions", duration_minutes:20, location:'pharmacy',
+      resource_id:'family_car', for_person_id:'p7', travel_minutes:20, is_ics:false,
+      notes:`Sam's monthly blood pressure and cholesterol meds from Walgreens. He can't drive himself. Morgan normally does this but anyone with the car can help.` },
+    { task_id:'t9', description:'After-school pickup — Riley', duration_minutes:30, location:'school',
+      resource_id:null, for_person_id:'p3', travel_minutes:20, is_ics:false,
+      notes:`Riley is dismissed at 3:00 pm. Must be picked up by 3:15 pm. If no one arrives, the school calls — Riley gets anxious waiting in the office.` },
+    { task_id:'t10', description:'Casey piano lesson', duration_minutes:45, location:'music_studio',
+      resource_id:null, for_person_id:'p4', travel_minutes:25, is_ics:false,
+      notes:`Weekly piano lesson with Ms. Chen at the music studio. Casey is working on Grade 2 pieces. 45-min lesson, 25-min drive each way.` },
+    { task_id:'t11', description:'Cook family dinner', duration_minutes:45, location:'home',
+      resource_id:null, for_person_id:null, travel_minutes:0, is_ics:false,
+      notes:`Family eats together at 6:30 pm. Someone needs to start cooking by 5:30 pm. Alex or Jordan usually handle this — it's a decompression activity for both.` },
+    { task_id:'t12', description:'Kids evening routine', duration_minutes:30, location:'home',
+      resource_id:null, for_person_id:null, travel_minutes:0, is_ics:false,
+      notes:`Bath time, homework check, and bedtime for all 3 kids. Takes ~30 min per child minimum. Needs at least one parent home. Often both help to split the load.` },
+  ],
+};
+
+// ── constants ─────────────────────────────────────────────────────────────────
+const DATE = '2026-06-15';
+const SH = 7, EH = 23, SMIN = 30;
+const SLOTS = (EH - SH) * 60 / SMIN;
+const EH_LABEL = (EH - 12) + ' PM';
+const SW = 44;
+
+// ── runtime state ─────────────────────────────────────────────────────────────
+const S = {
+  id: null, people: [], tasks: [], allTasks: [],
+  sched: {}, conflicts: new Set(), simDone: false,
+  selTask: null, tab: 'tasks', icsTasks: [],
+};
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+function taskById(id) { return S.allTasks.find(t => t.task_id === id); }
+function personById(id) { return S.people.find(p => p.person_id === id); }
+function firstName(p) { return p ? p.name.replace(/ \(.*?\)$/, '').trim() : ''; }
+function slotMin(s) { return SH * 60 + s * SMIN; }
+function slotLabel(s) {
+  const m = slotMin(s), h = Math.floor(m / 60), mn = m % 60;
+  return (h > 12 ? h - 12 : h) + ':' + String(mn).padStart(2, '0') + (h < 12 ? 'a' : 'p');
+}
+function escH(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── game lifecycle ────────────────────────────────────────────────────────────
+function startGame() {
+  Object.assign(S, { id:'local', people:[], tasks:[], allTasks:[], sched:{},
+    conflicts:new Set(), simDone:false, selTask:null, icsTasks:[] });
+  S.people = SCENARIO.people;
+  S.tasks = SCENARIO.tasks;
+  S.allTasks = [...SCENARIO.tasks];
+  document.getElementById('app-status').textContent = 'Family Chaos \u2014 Normal';
+  document.getElementById('pbadge').style.display = '';
+  document.getElementById('btn-sim').disabled = false;
+  document.getElementById('btn-ics').disabled = false;
+  document.getElementById('btn-reset').disabled = false;
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('ics-input').onchange = onICSFile;
+  renderAll();
+  toast('Game started! Select a task, then tap a time slot to schedule it.');
+}
+
+function resetBoard() {
+  S.sched = {}; S.conflicts = new Set(); S.simDone = false; S.selTask = null;
+  renderTaskPanel(); renderPeoplePanel(); refreshOverlays(); updateBadge();
+  document.getElementById('results').style.display = 'none';
+  toast('Board cleared.');
+}
+
+function renderAll() { renderTaskPanel(); renderPeoplePanel(); renderGrid(); updateBadge(); }
+
+// ── tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  S.tab = tab;
+  document.getElementById('tab-tasks').className = 'tab' + (tab === 'tasks' ? ' on' : '');
+  document.getElementById('tab-people').className = 'tab' + (tab === 'people' ? ' on' : '');
+  document.getElementById('tasks-panel').style.display = tab === 'tasks' ? '' : 'none';
+  document.getElementById('people-panel').style.display = tab === 'people' ? '' : 'none';
+}
+
+// ── task panel ────────────────────────────────────────────────────────────────
+function renderTaskPanel() {
+  if (!S.allTasks.length) return;
+  const html = S.allTasks.map(t => {
+    const done = !!S.sched[t.task_id];
+    const sel = S.selTask === t.task_id;
+    const forP = t.for_person_id ? personById(t.for_person_id) : null;
+    const forStr = forP ? firstName(forP) : null;
+    let meta = '';
+    if (forStr) meta += '<span class="for-who">For: ' + escH(forStr) + '</span>';
+    meta += '<span>\u{1f4cd} ' + escH(t.location || 'home') + '</span>';
+    meta += '<span>\u231b ' + t.duration_minutes + 'm</span>';
+    if (t.travel_minutes > 0) meta += '<span>\u{1f697} ~' + t.travel_minutes + 'min travel</span>';
+    if (t.resource_id) meta += '<span class="res">\u{1f69a} ' + escH(t.resource_id) + '</span>';
+    const icsBadge = t.is_ics ? '<span class="ics-badge">ICS</span>' : '';
+    const doneCheck = done ? ' \u2713' : '';
+    const notesDiv = t.notes ? '<div class="tc-notes">' + escH(t.notes) + '</div>' : '';
+    return '<div class="tc' + (done ? ' done' : '') + (sel ? ' sel' : '') +
+      '" data-tid="' + t.task_id + '">' +
+      '<div class="tn">' + escH(t.description) + doneCheck + icsBadge + '</div>' +
+      '<div class="tm">' + meta + '</div>' + notesDiv + '</div>';
+  }).join('');
+  const panel = document.getElementById('tasks-panel');
+  panel.innerHTML = html;
+  panel.querySelectorAll('[data-tid]').forEach(el => {
+    el.addEventListener('click', () => pickTask(el.dataset.tid));
+  });
+}
+
+// ── people panel ──────────────────────────────────────────────────────────────
+function renderPeoplePanel() {
+  if (!S.people.length) return;
+  const html = S.people.map(p => {
+    const driveEl = p.can_drive
+      ? '<span class="dy">\u2705 Can drive</span>'
+      : '<span class="dn">\u274c Needs a driver</span>';
+    const pd = p.primary_driver_id ? personById(p.primary_driver_id) : null;
+    const pdStr = pd ? ' \u2014 usually ' + escH(firstName(pd)) : '';
+    const tasksFor = S.allTasks.filter(t => t.for_person_id === p.person_id);
+    const schedFor = tasksFor.filter(t => S.sched[t.task_id]);
+    const loadN = Object.values(S.sched).filter(e => e.person_id === p.person_id).length;
+    return '<div class="pc" data-pid="' + p.person_id + '">' +
+      '<div class="pc-head"><span class="pc-name">' + escH(p.name) + '</span>' +
+      (p.age > 0 ? '<span class="age-badge">' + p.age + '</span>' : '') + '</div>' +
+      (p.occupation ? '<div class="pc-occ">' + escH(p.occupation) + '</div>' : '') +
+      (p.work_schedule ? '<div class="pc-sched">\u{1f556} ' + escH(p.work_schedule) + '</div>' : '') +
+      '<div class="pc-drive">' + driveEl + pdStr + '</div>' +
+      '<div class="pc-detail">' +
+      (p.bio ? '<div class="pc-bio">' + escH(p.bio) + '</div>' : '') +
+      (p.likes ? '<div class="pc-likes">Enjoys: <em>' + escH(p.likes) + '</em></div>' : '') +
+      (loadN > 0 ? '<div class="pc-load">Assigned: ' + loadN + ' task(s)' +
+        (tasksFor.length ? ' | ' + schedFor.length + '/' + tasksFor.length + ' personal tasks scheduled' : '') +
+        '</div>' : '') +
+      '</div></div>';
+  }).join('');
+  const panel = document.getElementById('people-panel');
+  panel.innerHTML = html;
+  panel.querySelectorAll('[data-pid]').forEach(el => {
+    el.addEventListener('click', () => {
+      el.classList.toggle('act');
+    });
+  });
+}
+
+// ── grid ──────────────────────────────────────────────────────────────────────
+function renderGrid() {
+  const area = document.getElementById('grid-area');
+  if (!S.people.length) return;
+  const hint = document.getElementById('grid-hint');
+  if (hint) hint.style.display = 'none';
+  let h = '<div class="grid-wrap"><div class="g-head"><div style="width:var(--name-w);flex-shrink:0"></div>';
+  for (let s = 0; s < SLOTS; s++) {
+    h += '<div class="g-tlabel">' + (s % 2 === 0 ? slotLabel(s) : '') + '</div>';
+  }
+  h += '</div>';
+  for (const p of S.people) {
+    const noDriver = !p.can_drive ? '<span class="nd" title="Cannot drive">P</span>' : '';
+    h += '<div class="g-row">' +
+      '<div class="g-name" data-gpid="' + p.person_id + '">' +
+      '<span class="hap" id="hap-' + p.person_id + '" title="Workload indicator"></span>' +
+      '<span class="g-name-text">' + escH(p.name.replace(/ \(.*?\)$/, '')) + '</span>' +
+      noDriver + '</div>' +
+      '<div class="g-slots" id="row-' + p.person_id + '">';
+    for (let s = 0; s < SLOTS; s++) {
+      h += '<div class="g-slot" data-pid="' + p.person_id + '" data-s="' + s + '"></div>';
+    }
+    h += '</div></div>';
+  }
+  h += '</div>';
+  area.innerHTML = h;
+  area.querySelectorAll('[data-gpid]').forEach(el => {
+    el.addEventListener('click', e => { e.stopPropagation(); showPOV(el.dataset.gpid); });
+  });
+  area.querySelectorAll('[data-s]').forEach(el => {
+    el.addEventListener('click', () => assignSlot(el.dataset.pid, +el.dataset.s));
+  });
+  refreshOverlays();
+}
+
+function refreshOverlays() {
+  document.querySelectorAll('.ev').forEach(e => e.remove());
+  document.querySelectorAll('.g-slot').forEach(el => el.classList.remove('blocked'));
+  for (const [tid, ev] of Object.entries(S.sched)) {
+    const task = taskById(tid);
+    if (!task) continue;
+    const row = document.getElementById('row-' + ev.person_id);
+    if (!row) continue;
+    const wSlots = Math.ceil(task.duration_minutes / SMIN);
+    const isCon = S.conflicts.has(tid);
+    const cls = 'ev' + (isCon ? ' conflict' : (S.simDone ? ' ok' : ''));
+    const block = document.createElement('div');
+    block.className = cls;
+    block.style.left = (ev.slot * SW) + 'px';
+    block.style.width = (wSlots * SW - 2) + 'px';
+    const label = task.description.length > 20 ? task.description.slice(0, 18) + '\u2026' : task.description;
+    block.textContent = label;
+    block.title = task.description + ' (' + task.duration_minutes + 'm) \u2014 tap to move';
+    block.addEventListener('click', e => { e.stopPropagation(); pickupEvent(tid); });
+    row.appendChild(block);
+    for (let s = ev.slot; s < ev.slot + wSlots && s < SLOTS; s++) {
+      const sl = row.querySelector('[data-s="' + s + '"]');
+      if (sl) sl.classList.add('blocked');
+    }
+  }
+  updateHappiness();
+}
+
+// ── task interaction ──────────────────────────────────────────────────────────
+function pickTask(id) {
+  if (S.sched[id]) { pickupEvent(id); return; }
+  S.selTask = S.selTask === id ? null : id;
+  renderTaskPanel();
+}
+
+function pickupEvent(tid) {
+  delete S.sched[tid];
+  S.selTask = tid;
+  S.simDone = false; S.conflicts = new Set();
+  renderTaskPanel(); renderPeoplePanel(); refreshOverlays(); updateBadge();
+  document.getElementById('results').style.display = 'none';
+  toast('Picked up \u2014 tap a new slot to place, or Esc to cancel.');
+}
+
+function assignSlot(personId, slot) {
+  if (!S.selTask) { toast('Select a task from the left panel first.'); return; }
+  const tid = S.selTask;
+  const task = taskById(tid);
+  if (!task) return;
+  const wSlots = Math.ceil(task.duration_minutes / SMIN);
+  if (slot + wSlots > SLOTS) { toast('Task extends past ' + EH_LABEL + ' \u2014 pick an earlier slot.', true); return; }
+  if (isOccupied(personId, slot, task.duration_minutes)) {
+    toast('That person is already busy at that time.', true); return;
+  }
+  S.sched[tid] = { person_id: personId, slot };
+  S.selTask = null; S.conflicts = new Set(); S.simDone = false;
+  renderTaskPanel(); renderPeoplePanel(); refreshOverlays(); updateBadge();
+  document.getElementById('results').style.display = 'none';
+}
+
+function isOccupied(personId, slot, durationMin) {
+  const w = Math.ceil(durationMin / SMIN);
+  for (const [tid, ev] of Object.entries(S.sched)) {
+    if (ev.person_id !== personId) continue;
+    const t = taskById(tid);
+    const ew = Math.ceil((t ? t.duration_minutes : 30) / SMIN);
+    if (slot < ev.slot + ew && slot + w > ev.slot) return true;
+  }
+  return false;
+}
+
+// ── person overlay ────────────────────────────────────────────────────────────
+function showPOV(personId) {
+  const p = personById(personId);
+  if (!p) return;
+  const pd = p.primary_driver_id ? personById(p.primary_driver_id) : null;
+  const loadN = Object.values(S.sched).filter(e => e.person_id === personId).length;
+  const tasksFor = S.allTasks.filter(t => t.for_person_id === personId);
+  const schedFor = tasksFor.filter(t => S.sched[t.task_id]);
+  const driveStr = p.can_drive ? '\u2705 Licensed driver' : '\u274c Cannot drive \u2014 needs transport';
+  const pdStr = pd ? '<br>Primary driver: ' + escH(pd.name) : '';
+  document.getElementById('pov-content').innerHTML =
+    '<div class="pov-name">' + escH(p.name) + '</div>' +
+    '<div class="pov-sub">' + escH(p.occupation || '') + (p.age > 0 ? ' &mdash; age ' + p.age : '') + '</div>' +
+    (p.work_schedule ? '<div class="pov-sec"><div class="pov-lbl">Schedule</div><div class="pov-val">' + escH(p.work_schedule) + '</div></div>' : '') +
+    (p.bio ? '<div class="pov-sec"><div class="pov-lbl">Background</div><div class="pov-val">' + escH(p.bio) + '</div></div>' : '') +
+    '<div class="pov-sec"><div class="pov-lbl">Driver Status</div><div class="pov-val">' + driveStr + pdStr + '</div></div>' +
+    (p.likes ? '<div class="pov-sec"><div class="pov-lbl">Enjoys</div><div class="pov-val">' + escH(p.likes) + '</div></div>' : '') +
+    '<div class="pov-sec"><div class="pov-lbl">Today\'s Load</div><div class="pov-val">' +
+    loadN + ' task(s) assigned to them' +
+    (tasksFor.length ? '<br>' + schedFor.length + ' of ' + tasksFor.length + ' personal tasks scheduled' : '') +
+    '</div></div>';
+  const ov = document.getElementById('pov');
+  ov.style.top = '76px'; ov.style.right = '16px'; ov.style.left = 'auto';
+  ov.style.display = 'block';
+}
+
+document.getElementById('pov-close').addEventListener('click', () => {
+  document.getElementById('pov').style.display = 'none';
+});
+document.addEventListener('click', e => {
+  const ov = document.getElementById('pov');
+  if (ov.style.display !== 'none' && !ov.contains(e.target) && !e.target.closest('[data-gpid]')) {
+    ov.style.display = 'none';
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && S.selTask) {
+    S.selTask = null;
+    renderTaskPanel();
+    toast('Deselected \u2014 task not placed.');
+  }
+});
+
+// ── happiness ─────────────────────────────────────────────────────────────────
+function updateHappiness() {
+  S.people.forEach(p => {
+    const dot = document.getElementById('hap-' + p.person_id);
+    if (!dot) return;
+    const n = Object.values(S.sched).filter(e => e.person_id === p.person_id).length;
+    if (n === 0) { dot.style.background = 'var(--muted)'; dot.title = 'No tasks assigned yet'; }
+    else if (n <= 2) { dot.style.background = 'var(--success)'; dot.title = 'Reasonable workload (' + n + ' tasks)'; }
+    else if (n <= 4) { dot.style.background = 'var(--warn)'; dot.title = 'Getting busy (' + n + ' tasks)'; }
+    else { dot.style.background = 'var(--danger)'; dot.title = 'Heavy workload! (' + n + ' tasks)'; }
+  });
+}
+
+// ── simulation engine (client-side) ──────────────────────────────────────────
+function simulateNow() {
+  const events = Object.entries(S.sched).map(([tid, ev]) => {
+    const task = taskById(tid);
+    if (!task) return null;
+    return {
+      task_id: tid, person_id: ev.person_id,
+      start_min: slotMin(ev.slot), end_min: slotMin(ev.slot) + task.duration_minutes,
+      location: task.location, resource_id: task.resource_id || null,
+    };
+  }).filter(Boolean);
+
+  const conflicts = [
+    ...findDoubleBookings(events),
+    ...findTravelBuffers(events),
+    ...findResourceConflicts(events),
+  ];
+  return { is_valid: conflicts.length === 0, conflicts, scheduled_count: events.length };
+}
+
+function findDoubleBookings(events) {
+  const byPerson = {};
+  for (const e of events) (byPerson[e.person_id] = byPerson[e.person_id] || []).push(e);
+  const out = [];
+  for (const [pid, evs] of Object.entries(byPerson)) {
+    const sorted = evs.slice().sort((a, b) => a.start_min - b.start_min);
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i].end_min > sorted[i + 1].start_min)
+        out.push({ type: 'double_booking', person_id: pid, task_a: sorted[i].task_id, task_b: sorted[i + 1].task_id });
+    }
+  }
+  return out;
+}
+
+function findTravelBuffers(events) {
+  const byPerson = {};
+  for (const e of events) (byPerson[e.person_id] = byPerson[e.person_id] || []).push(e);
+  const out = [];
+  for (const [pid, evs] of Object.entries(byPerson)) {
+    const sorted = evs.slice().sort((a, b) => a.start_min - b.start_min);
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const a = sorted[i], b = sorted[i + 1];
+      if (a.location === b.location) continue;
+      if (b.start_min - a.end_min < 30)
+        out.push({ type: 'travel_buffer', person_id: pid, from_task: a.task_id, to_task: b.task_id });
+    }
+  }
+  return out;
+}
+
+function findResourceConflicts(events) {
+  const byRes = {};
+  for (const e of events) if (e.resource_id) (byRes[e.resource_id] = byRes[e.resource_id] || []).push(e);
+  const out = [];
+  for (const [rid, evs] of Object.entries(byRes)) {
+    const sorted = evs.slice().sort((a, b) => a.start_min - b.start_min);
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i].end_min > sorted[i + 1].start_min)
+        out.push({ type: 'resource_conflict', resource_id: rid, task_a: sorted[i].task_id, task_b: sorted[i + 1].task_id });
+    }
+  }
+  return out;
+}
+
+// ── simulation UI ─────────────────────────────────────────────────────────────
+function fmtConflict(c) {
+  const type = c.type || '';
+  if (type === 'double_booking') {
+    const p = personById(c.person_id);
+    const ta = taskById(c.task_a), tb = taskById(c.task_b);
+    return '<b>Double booking:</b> ' + escH(p ? p.name : c.person_id) +
+      ' has \u201c' + escH(ta ? ta.description : c.task_a) +
+      '\u201d and \u201c' + escH(tb ? tb.description : c.task_b) + '\u201d overlapping.';
+  }
+  if (type === 'travel_buffer') {
+    const p = personById(c.person_id);
+    const ta = taskById(c.from_task), tb = taskById(c.to_task);
+    return '<b>Travel gap:</b> ' + escH(p ? p.name : c.person_id) +
+      ' needs 30+ min between \u201c' + escH(ta ? ta.description : c.from_task) +
+      '\u201d and \u201c' + escH(tb ? tb.description : c.to_task) + '\u201d (different locations).';
+  }
+  if (type === 'resource_conflict') {
+    const ta = taskById(c.task_a), tb = taskById(c.task_b);
+    return '<b>Resource conflict:</b> \u201c' + escH(ta ? ta.description : c.task_a) +
+      '\u201d and \u201c' + escH(tb ? tb.description : c.task_b) +
+      '\u201d both need <em>' + escH(c.resource_id) + '</em> at the same time.';
+  }
+  return escH(JSON.stringify(c));
+}
+
+function runSim() {
+  if (!S.id) return;
+  const btn = document.getElementById('btn-sim');
+  btn.disabled = true; btn.textContent = 'Running\u2026';
+  const d = simulateNow();
+  const panel = document.getElementById('results');
+  panel.style.display = ''; S.simDone = true;
+  if (d.is_valid) {
+    S.conflicts = new Set();
+    panel.innerHTML = '<h3>Simulation Result</h3>' +
+      '<div class="valid-msg">\u2713 Schedule is valid \u2014 no conflicts!</div>' +
+      '<div class="info">' + d.scheduled_count + ' event(s) checked across ' + S.people.length + ' people.</div>';
+  } else {
+    S.conflicts = new Set();
+    (d.conflicts || []).forEach(c => {
+      if (c.task_a) S.conflicts.add(c.task_a);
+      if (c.task_b) S.conflicts.add(c.task_b);
+      if (c.from_task) S.conflicts.add(c.from_task);
+      if (c.to_task) S.conflicts.add(c.to_task);
+    });
+    const items = (d.conflicts || []).map(c => '<div class="citem">\u26a0 ' + fmtConflict(c) + '</div>').join('');
+    panel.innerHTML = '<h3>Simulation Result \u2014 ' + (d.conflicts || []).length + ' Conflict(s)</h3>' +
+      items + '<div class="info">Conflicting tasks highlighted in red. Reschedule and simulate again.</div>';
+  }
+  refreshOverlays();
+  btn.disabled = false; btn.textContent = '\u25b6 Simulate';
+}
+
+// ── ICS import ────────────────────────────────────────────────────────────────
+function onICSFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => processICS(e.target.result);
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function processICS(text) {
+  const events = parseICS(text);
+  if (!events.length) { toast('No VEVENT blocks found in this .ics file.', true); return; }
+  const added = events.map((ev, i) => ({
+    task_id: 'ics_' + Date.now() + '_' + i,
+    description: ev.summary, duration_minutes: Math.max(15, Math.min(ev.duration, 480)),
+    location: ev.location || 'home', resource_id: null, for_person_id: null,
+    travel_minutes: 0, is_ics: true,
+    notes: (ev.description ? ev.description + ' ' : '') + '[Imported from Google Calendar]',
+  }));
+  S.icsTasks = [...S.icsTasks, ...added];
+  S.allTasks = [...S.tasks, ...S.icsTasks];
+  renderTaskPanel(); updateBadge();
+  toast(added.length + ' event(s) imported. Select from task panel to schedule.');
+}
+
+function parseICS(text) {
+  const events = [];
+  const norm = text.split('\r\n').join('\n').split('\r').join('\n');
+  const blocks = norm.split('BEGIN:VEVENT');
+  for (let i = 1; i < blocks.length; i++) {
+    const lines = blocks[i].split('\n');
+    const get = key => {
+      const line = lines.find(l => l.startsWith(key + ':') || l.startsWith(key + ';'));
+      if (!line) return null;
+      const idx = line.indexOf(':');
+      return idx >= 0 ? line.slice(idx + 1).trim() : null;
+    };
+    const dtstart = get('DTSTART'), dtend = get('DTEND');
+    let duration = 60;
+    if (dtstart && dtend) {
+      const clean = s => {
+        const d = s.replace(/Z$/, '');
+        if (d.length === 8) return d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6);
+        return d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8) + 'T' +
+          d.slice(9, 11) + ':' + d.slice(11, 13) + ':' + d.slice(13, 15);
+      };
+      const ms = new Date(clean(dtend)) - new Date(clean(dtstart));
+      if (!isNaN(ms) && ms > 0) duration = Math.round(ms / 60000);
+    }
+    const summary = get('SUMMARY');
+    if (!summary && !dtstart) continue;
+    events.push({ summary: summary || 'Imported event', location: get('LOCATION') || 'home',
+      description: get('DESCRIPTION') || '', duration });
+  }
+  return events;
+}
+
+// ── misc ──────────────────────────────────────────────────────────────────────
+function updateBadge() {
+  document.getElementById('pbadge').textContent = Object.keys(S.sched).length + '/' + S.allTasks.length + ' scheduled';
+}
+
+function toast(msg, err) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (err ? ' err' : '');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ── wire up buttons and tabs ──────────────────────────────────────────────────
+document.getElementById('btn-new').addEventListener('click', startGame);
+document.getElementById('btn-sim').addEventListener('click', runSim);
+document.getElementById('btn-reset').addEventListener('click', resetBoard);
+document.getElementById('btn-ics').addEventListener('click', () => document.getElementById('ics-input').click());
+document.getElementById('tab-tasks').addEventListener('click', () => switchTab('tasks'));
+document.getElementById('tab-people').addEventListener('click', () => switchTab('people'));
+</script>
+</body>
+</html>
