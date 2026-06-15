@@ -266,13 +266,16 @@ function formatTimeRange(startMinutes,durationMinutes){
   return formatClock(startMinutes)+' - '+formatClock(startMinutes+durationMinutes);
 }
 function taskTooltip(task,startSlot){
-  const startMinutes=slotMin(startSlot);
   const parts=[
     task.description,
-    'Time: '+formatTimeRange(startMinutes,task.duration_minutes),
     'Duration: '+task.duration_minutes+' min',
     'Location: '+(task.location||'home'),
   ];
+  if(startSlot!==null&&startSlot!==undefined){
+    parts.splice(1,0,'Time: '+formatTimeRange(slotMin(startSlot),task.duration_minutes));
+  }else{
+    parts.splice(1,0,'Status: '+(S.sched[task.task_id]?'Placed on calendar':'Not yet placed'));
+  }
   if(task.for_person_id){
     const p=personById(task.for_person_id);
     parts.push('For: '+(p?p.name:task.for_person_id));
@@ -292,6 +295,25 @@ function blockerTooltip(blocker){
   ];
   if(blocker.notes)parts.push('Notes: '+blocker.notes);
   if(blocker.hidden_until)parts.push('Appears once the calendar starts filling up');
+  return parts.join('\n');
+}
+function personTooltip(person){
+  const primaryDriver=person.primary_driver_id?personById(person.primary_driver_id):null;
+  const tasksFor=S.allTasks.filter(t=>t.for_person_id===person.person_id);
+  const scheduledFor=tasksFor.filter(t=>S.sched[t.task_id]);
+  const loadN=Object.values(S.sched).filter(e=>e.person_id===person.person_id).length;
+  const parts=[
+    person.name,
+    person.occupation?'Occupation: '+person.occupation:null,
+    person.work_schedule?'Schedule: '+person.work_schedule:null,
+    'Driver: '+(person.can_drive?'Can drive':'Needs a driver'),
+    primaryDriver?'Usually rides with: '+primaryDriver.name:null,
+    'Today\'s load: '+loadN+' task(s)',
+    tasksFor.length?'Personal tasks scheduled: '+scheduledFor.length+'/'+tasksFor.length:null,
+    person.likes?'Enjoys: '+person.likes:null,
+    person.bio?'Background: '+person.bio:null,
+    'Click for the full profile panel',
+  ].filter(Boolean);
   return parts.join('\n');
 }
 function diffTaskCount(diff){return (DIFF_TASKS[diff]||[]).length;}
@@ -410,7 +432,14 @@ function renderTaskPanel(){
   }).join('');
   const panel=document.getElementById('tasks-panel');
   panel.innerHTML=html;
-  panel.querySelectorAll('[data-tid]').forEach(el=>el.addEventListener('click',()=>pickTask(el.dataset.tid)));
+  panel.querySelectorAll('[data-tid]').forEach(el=>{
+    const task=taskById(el.dataset.tid);
+    if(task){
+      const scheduled=S.sched[task.task_id];
+      bindQuickTooltip(el,taskTooltip(task,scheduled?scheduled.slot:null));
+    }
+    el.addEventListener('click',()=>pickTask(el.dataset.tid));
+  });
 }
 
 // ── people panel ──────────────────────────────────────────────────────────────
@@ -436,7 +465,11 @@ function renderPeoplePanel(){
   }).join('');
   const panel=document.getElementById('people-panel');
   panel.innerHTML=html;
-  panel.querySelectorAll('[data-pid]').forEach(el=>el.addEventListener('click',()=>el.classList.toggle('act')));
+  panel.querySelectorAll('[data-pid]').forEach(el=>{
+    const person=personById(el.dataset.pid);
+    if(person)bindQuickTooltip(el,personTooltip(person));
+    el.addEventListener('click',()=>el.classList.toggle('act'));
+  });
 }
 
 // ── grid ──────────────────────────────────────────────────────────────────────
@@ -466,7 +499,11 @@ function renderGrid(){
   }
   h+='</div>';
   area.innerHTML=h;
-  area.querySelectorAll('[data-gpid]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();showPOV(el.dataset.gpid);}));
+  area.querySelectorAll('[data-gpid]').forEach(el=>{
+    const person=personById(el.dataset.gpid);
+    if(person)bindQuickTooltip(el,personTooltip(person));
+    el.addEventListener('click',e=>{e.stopPropagation();showPOV(el.dataset.gpid);});
+  });
   area.querySelectorAll('[data-s]').forEach(el=>el.addEventListener('click',()=>assignSlot(el.dataset.pid,+el.dataset.s)));
   refreshOverlays();
 }
