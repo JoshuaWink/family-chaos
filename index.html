@@ -106,6 +106,7 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
 .info{color:var(--muted);font-size:11px;margin-top:5px}
 .toast{position:fixed;bottom:20px;right:20px;background:#1a2035;border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-size:12px;z-index:999;max-width:280px;line-height:1.4;pointer-events:none}
 .toast.err{border-color:var(--danger);color:#fca5a5}
+#hover-tip{position:fixed;z-index:500;display:none;max-width:300px;padding:8px 10px;border-radius:8px;background:rgba(15,17,23,.96);border:1px solid rgba(124,106,247,.45);box-shadow:0 10px 30px rgba(0,0,0,.45);color:var(--text);font-size:11px;line-height:1.45;white-space:pre-line;pointer-events:none;transform:translateZ(0)}
 @media(max-width:600px){
   #left{width:220px;min-width:180px}
   .logo{font-size:13px}
@@ -158,6 +159,7 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
 </div>
 <div id="results" style="display:none"></div>
 <div id="pov"><button class="pov-close" id="pov-close">&#10005;</button><div id="pov-content"></div></div>
+<div id="hover-tip" role="tooltip" aria-hidden="true"></div>
 
 <script>
 // ── people ────────────────────────────────────────────────────────────────────
@@ -487,8 +489,8 @@ function refreshOverlays(){
     block.style.width=(wSlots*SW-2)+'px';
     const lbl=task.description.length>18?task.description.slice(0,16)+'\u2026':task.description;
     block.textContent=lbl;
-    block.title=taskTooltip(task,ev.slot);
-    block.setAttribute('aria-label',taskTooltip(task,ev.slot).replace(/\n/g,' '));
+    const taskTip=taskTooltip(task,ev.slot);
+    bindQuickTooltip(block,taskTip);
     block.addEventListener('click',e=>{e.stopPropagation();pickupEvent(tid);});
     row.appendChild(block);
     for(let s=ev.slot;s<ev.slot+wSlots&&s<SLOTS;s++){
@@ -506,8 +508,8 @@ function refreshOverlays(){
     block.style.left=(blocker.start_slot*SW)+'px';
     block.style.width=(widthSlots*SW-2)+'px';
     block.textContent=blocker.label.length>18?blocker.label.slice(0,16)+'\u2026':blocker.label;
-    block.title=blockerTooltip(blocker);
-    block.setAttribute('aria-label',blockerTooltip(blocker).replace(/\n/g,' '));
+    const blockerTip=blockerTooltip(blocker);
+    bindQuickTooltip(block,blockerTip);
     block.addEventListener('click',e=>e.stopPropagation());
     row.appendChild(block);
     for(let s=blocker.start_slot;s<blocker.start_slot+widthSlots&&s<SLOTS;s++){
@@ -691,6 +693,46 @@ function parseICS(text){
 // ── misc ──────────────────────────────────────────────────────────────────────
 function updateBadge(){document.getElementById('pbadge').textContent=Object.keys(S.sched).length+'/'+S.allTasks.length+' scheduled';}
 function toast(msg,err){const el=document.createElement('div');el.className='toast'+(err?' err':'');el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3200);}
+let hoverTipEl=null;
+function ensureHoverTip(){
+  if(!hoverTipEl) hoverTipEl=document.getElementById('hover-tip');
+  return hoverTipEl;
+}
+function placeHoverTip(x,y){
+  const tip=ensureHoverTip();
+  if(!tip) return;
+  const pad=12;
+  const rect=tip.getBoundingClientRect();
+  let left=x+16;
+  let top=y+18;
+  if(left+rect.width+pad>window.innerWidth) left=Math.max(pad,x-rect.width-16);
+  if(top+rect.height+pad>window.innerHeight) top=Math.max(pad,y-rect.height-18);
+  tip.style.left=left+'px';
+  tip.style.top=top+'px';
+}
+function showHoverTip(text,x,y){
+  const tip=ensureHoverTip();
+  if(!tip||!text) return;
+  tip.textContent=text;
+  tip.style.display='block';
+  tip.style.visibility='hidden';
+  tip.style.left='0px';
+  tip.style.top='0px';
+  placeHoverTip(x,y);
+  tip.style.visibility='visible';
+}
+function hideHoverTip(){
+  const tip=ensureHoverTip();
+  if(!tip) return;
+  tip.style.display='none';
+}
+function bindQuickTooltip(el,text){
+  el.setAttribute('aria-label',text.replace(/\n/g,' '));
+  el.addEventListener('pointerenter',e=>showHoverTip(text,e.clientX,e.clientY));
+  el.addEventListener('pointermove',e=>placeHoverTip(e.clientX,e.clientY));
+  el.addEventListener('pointerleave',hideHoverTip);
+  el.addEventListener('pointercancel',hideHoverTip);
+}
 
 // ── wiring ────────────────────────────────────────────────────────────────────
 document.getElementById('btn-new').addEventListener('click',startGame);
