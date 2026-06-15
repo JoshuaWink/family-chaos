@@ -89,6 +89,9 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
 .ev:hover{filter:brightness(1.1)}
 .ev.conflict{background:var(--danger)!important}.ev.ok{background:var(--success)!important}
 .ev.easy-col{background:#15803d}.ev.hard-col{background:#9333ea}
+.blocker{position:absolute;top:3px;height:calc(100% - 6px);background:rgba(148,163,184,.14);border:1px dashed rgba(148,163,184,.55);border-radius:4px;display:flex;align-items:center;padding:0 5px;font-size:9px;font-weight:800;white-space:nowrap;overflow:hidden;z-index:1;pointer-events:none;color:#e2e8f0;opacity:.95}
+.blocker.hidden{background:rgba(107,114,128,.10);border-style:dashed;color:rgba(226,232,240,.68)}
+.blocker.conflict{background:rgba(239,68,68,.28);border-color:rgba(239,68,68,.85);color:#fff}
 #pov{display:none;position:fixed;z-index:100;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:18px 18px 14px;width:288px;box-shadow:0 8px 30px rgba(0,0,0,.6);max-height:76vh;overflow-y:auto}
 .pov-close{position:absolute;top:10px;right:12px;cursor:pointer;color:var(--muted);font-size:18px;background:none;border:none;line-height:1;padding:0;touch-action:manipulation}
 .pov-name{font-size:15px;font-weight:800;color:var(--text);margin-bottom:1px}
@@ -137,7 +140,7 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
     <div class="tab-body" id="tasks-panel">
       <p style="padding:14px;color:var(--muted);font-size:11px;line-height:1.7">
         Choose a difficulty, press <strong style="color:var(--text)">New Game</strong>.
-        Select a task then tap a 15-minute slot to place it. Tap a placed block to move it.
+        Select a task then tap a 15-minute slot to place it. Tap a placed block to move it. Some calendar holds are already blocked out, and more can appear once the day starts filling up.
       </p>
     </div>
     <div class="tab-body" id="people-panel" style="display:none">
@@ -149,7 +152,7 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
   <div id="grid-area">
     <div class="hint" id="grid-hint">
       <p>Press New Game to begin</p>
-      <small>Schedule the Smith family's day. 15-minute slot precision. Tap a task, tap a slot. Simulate to check conflicts.</small>
+      <small>Schedule the Smith family's day. 15-minute slot precision. Tap a task, tap a slot. Simulate to check conflicts. Expect a few already-blocked holds and a few surprise ones that appear as you place things.</small>
     </div>
   </div>
 </div>
@@ -189,14 +192,32 @@ const TASKS_ALL = [
   {task_id:'t13',description:'Riley orthodontist',duration_minutes:45,location:'clinic',resource_id:'family_car',for_person_id:'p3',travel_minutes:20,is_ics:false,notes:'Routine ortho check at 2:15 pm -- overlaps with the 3:00 pm school dismissal window. Needs family car. Plan carefully.'},
   {task_id:'t14',description:'Drive Morgan to doctor',duration_minutes:60,location:'clinic',resource_id:'family_car',for_person_id:'p6',travel_minutes:15,is_ics:false,notes:"Morgan's annual physical at Riverside Medical. She can't drive herself -- someone must take her and wait. 60 min + 15 min travel each way."},
   {task_id:'t15',description:'School supplies -- Casey',duration_minutes:20,location:'market',resource_id:null,for_person_id:'p4',travel_minutes:10,is_ics:false,notes:'Casey forgot his art project supplies. Quick run needed before 3 pm while he is still in school.'},
+  {task_id:'t16',description:'Parent-teacher conference -- Casey',duration_minutes:30,location:'school',resource_id:null,for_person_id:'p4',travel_minutes:10,is_ics:false,notes:'A surprise afternoon conference about Casey\'s reading progress. Short but time sensitive and very school-day specific.'},
+  {task_id:'t17',description:'Morgan bridge club',duration_minutes:60,location:'community_center',resource_id:null,for_person_id:'p6',travel_minutes:15,is_ics:false,notes:'Morgan already promised the bridge ladies she would be there. This is one of those commitments that never seems to move.'},
+  {task_id:'t18',description:'Alex hardware store pickup',duration_minutes:45,location:'market',resource_id:'family_car',for_person_id:'p1',travel_minutes:20,is_ics:false,notes:'Alex needs lumber and screws for the backyard project. The family car is required and the trip tends to eat the afternoon.'},
+  {task_id:'t19',description:'Jordan school volunteer shift',duration_minutes:45,location:'school',resource_id:null,for_person_id:'p2',travel_minutes:15,is_ics:false,notes:'Jordan picked up a last-minute volunteer shift at school and it landed right in the middle of the workday.'},
+  {task_id:'t20',description:'Drew invoice run',duration_minutes:30,location:'downtown',resource_id:null,for_person_id:'p10',travel_minutes:15,is_ics:false,notes:'Drew has to hand-deliver invoices before the office closes. Short trip, but it tends to collide with everything else.'},
+  {task_id:'t21',description:'Riley band practice',duration_minutes:45,location:'music_studio',resource_id:'family_car',for_person_id:'p3',travel_minutes:25,is_ics:false,notes:'Riley suddenly remembered band rehearsal overlaps with sports practice planning. It absolutely creates a transport squeeze.'},
+  {task_id:'t22',description:'Taylor well-child check',duration_minutes:30,location:'clinic',resource_id:null,for_person_id:'p5',travel_minutes:20,is_ics:false,notes:'Taylor\'s routine checkup was moved to the afternoon. It looks small, but it sits right on top of the more chaotic part of the day.'},
 ];
 
 const DIFF_TASKS={
-  easy:  ['t1','t4','t5','t7','t8','t9','t11','t12'],
-  normal:['t1','t2','t3','t4','t5','t6','t7','t8','t9','t10','t11','t12'],
-  hard:  ['t1','t2','t3','t4','t5','t6','t7','t8','t9','t10','t11','t12','t13','t14','t15'],
+  easy:  ['t1','t4','t5','t7','t8','t9','t11','t12','t16','t20'],
+  normal:['t1','t2','t3','t4','t5','t6','t7','t8','t9','t10','t11','t12','t16','t17'],
+  hard:  ['t1','t2','t3','t4','t5','t6','t7','t8','t9','t10','t11','t12','t13','t14','t15','t16','t17','t18','t19','t20','t21','t22'],
 };
-const DIFF_LABELS={easy:'Easy \u2014 8 tasks',normal:'Normal \u2014 12 tasks',hard:'Hard \u2014 15 tasks'};
+const DIFF_LABELS={easy:'Easy \u2014 10 tasks',normal:'Normal \u2014 14 tasks',hard:'Hard \u2014 22 tasks'};
+
+const BLOCKERS_ALL = [
+  { blocker_id:'b1', label:'Alex client review', person_id:'p1', start_slot:14, duration_minutes:45, modes:['easy','normal','hard'], notes:'Already blocked on Alex\'s calendar before the day starts.' },
+  { blocker_id:'b2', label:'Morgan bridge club', person_id:'p6', start_slot:24, duration_minutes:60, modes:['easy','normal','hard'], notes:'Morgan is already committed to bridge club from 1:00 to 2:00.' },
+  { blocker_id:'b3', label:'Jordan hospital huddle', person_id:'p2', start_slot:28, duration_minutes:60, modes:['normal','hard'], notes:'A standing hospital huddle that eats the lunch block.' },
+  { blocker_id:'b4', label:'Drew invoice review', person_id:'p10', start_slot:38, duration_minutes:30, modes:['hard'], notes:'Drew has to review invoices late in the afternoon.' },
+  { blocker_id:'b5', label:'Alex vendor call', person_id:'p1', start_slot:21, duration_minutes:30, modes:['normal','hard'], hidden_until:{ type:'scheduled_count', count:2 }, notes:'This hold only appears once the calendar starts to fill up.' },
+  { blocker_id:'b6', label:'Jordan volunteer shift', person_id:'p2', start_slot:35, duration_minutes:45, modes:['hard'], hidden_until:{ type:'scheduled_count', count:4 }, notes:'A surprise school volunteer shift appears after a few things are placed.' },
+  { blocker_id:'b7', label:'Riley band practice', person_id:'p3', start_slot:37, duration_minutes:45, modes:['hard'], hidden_until:{ type:'scheduled_count', count:5 }, notes:'Riley also has band practice, which is the kind of detail that blows up the plan.' },
+  { blocker_id:'b8', label:'Taylor nap block', person_id:'p5', start_slot:24, duration_minutes:60, modes:['hard'], hidden_until:{ type:'scheduled_count', count:6 }, notes:'Taylor\'s afternoon nap block only surfaces once the day is already crowded.' },
+];
 
 // ── grid constants ────────────────────────────────────────────────────────────
 const SH=7,EH=23,SMIN=15;
@@ -205,7 +226,7 @@ const EH_LABEL=(EH-12)+' PM';
 const SW=26;
 
 // ── state ─────────────────────────────────────────────────────────────────────
-const S={id:null,people:[],tasks:[],allTasks:[],sched:{},conflicts:new Set(),simDone:false,selTask:null,tab:'tasks',icsTasks:[],diff:'normal'};
+const S={id:null,people:[],tasks:[],allTasks:[],sched:{},conflicts:new Set(),simDone:false,selTask:null,tab:'tasks',icsTasks:[],revealedBlockers:new Set(),diff:'normal'};
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const taskById=id=>S.allTasks.find(t=>t.task_id===id);
@@ -215,12 +236,55 @@ const slotMin=s=>SH*60+s*SMIN;
 function slotLabel(s){const m=slotMin(s),h=Math.floor(m/60),mn=m%60;return(h>12?h-12:h)+(mn?':'+String(mn).padStart(2,'0'):'')+(h<12?'a':'p');}
 function escH(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function shuffle(arr){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function diffTaskCount(diff){return (DIFF_TASKS[diff]||[]).length;}
+function slotOverlap(startA,durationA,startB,durationB){return startA<startB+durationB&&startA+durationA>startB;}
+function blockerSlotWidth(blocker){return Math.max(1,Math.ceil(blocker.duration_minutes/SMIN));}
+function blockerIsVisible(blocker){return !blocker.hidden_until||S.revealedBlockers.has(blocker.blocker_id);}
+function activeBlockers(){return BLOCKERS_ALL.filter(blocker=>blocker.modes.indexOf(S.diff)>=0&&blockerIsVisible(blocker));}
+function updateRevealState(){
+  const newlyRevealed=[];
+  const scheduledCount=Object.keys(S.sched).length;
+  for(const blocker of BLOCKERS_ALL){
+    if(blocker.modes.indexOf(S.diff)<0) continue;
+    if(S.revealedBlockers.has(blocker.blocker_id)) continue;
+    if(blocker.hidden_until&&blocker.hidden_until.type==='scheduled_count'&&scheduledCount>=blocker.hidden_until.count){
+      S.revealedBlockers.add(blocker.blocker_id);
+      newlyRevealed.push(blocker);
+    }
+  }
+  return newlyRevealed;
+}
+function blockerConflictTaskIds(){
+  const ids=new Set();
+  for(const blocker of activeBlockers()){
+    const blockerWidth=blockerSlotWidth(blocker);
+    for(const[tid,ev] of Object.entries(S.sched)){
+      if(ev.person_id!==blocker.person_id) continue;
+      const task=taskById(tid);
+      if(!task) continue;
+      const taskWidth=Math.ceil(task.duration_minutes/SMIN);
+      if(slotOverlap(ev.slot,taskWidth,blocker.start_slot,blockerWidth)) ids.add(tid);
+    }
+  }
+  return ids;
+}
+function blockerHasConflict(blocker){
+  const blockerWidth=blockerSlotWidth(blocker);
+  for(const[tid,ev] of Object.entries(S.sched)){
+    if(ev.person_id!==blocker.person_id) continue;
+    const task=taskById(tid);
+    if(!task) continue;
+    const taskWidth=Math.ceil(task.duration_minutes/SMIN);
+    if(slotOverlap(ev.slot,taskWidth,blocker.start_slot,blockerWidth)) return true;
+  }
+  return false;
+}
 
 // ── game lifecycle ────────────────────────────────────────────────────────────
 function startGame(){
   const diff=S.diff;
   const tasks=shuffle(DIFF_TASKS[diff].map(id=>TASKS_ALL.find(t=>t.task_id===id)));
-  Object.assign(S,{id:'local',people:PEOPLE,tasks,allTasks:tasks,sched:{},conflicts:new Set(),simDone:false,selTask:null,icsTasks:[]});
+  Object.assign(S,{id:'local',people:PEOPLE,tasks,allTasks:tasks,sched:{},conflicts:new Set(),simDone:false,selTask:null,icsTasks:[],revealedBlockers:new Set()});
   document.getElementById('app-status').textContent=DIFF_LABELS[diff];
   document.getElementById('pbadge').style.display='';
   document.getElementById('btn-sim').disabled=false;
@@ -229,12 +293,12 @@ function startGame(){
   document.getElementById('results').style.display='none';
   document.getElementById('ics-input').onchange=onICSFile;
   renderAll();
-  const msg=diff==='easy'?'8 tasks today -- a manageable day.':diff==='hard'?'15 tasks! Jordan is working. The car is in high demand. Good luck!':'12 tasks -- a typical hectic family day.';
+  const msg=diff==='easy'?'10 tasks today -- a manageable day.':diff==='hard'?'22 tasks! The calendar is packed and surprise holds will appear.':'14 tasks -- a typical hectic family day with some calendar holds.';
   toast('Game started! '+msg);
 }
 
 function resetBoard(){
-  S.sched={};S.conflicts=new Set();S.simDone=false;S.selTask=null;
+  S.sched={};S.conflicts=new Set();S.simDone=false;S.selTask=null;S.revealedBlockers=new Set();
   renderTaskPanel();renderPeoplePanel();refreshOverlays();updateBadge();
   document.getElementById('results').style.display='none';
   toast('Board cleared -- same task order, fresh schedule.');
@@ -336,12 +400,14 @@ function renderGrid(){
 function refreshOverlays(){
   document.querySelectorAll('.ev').forEach(e=>e.remove());
   document.querySelectorAll('.g-slot').forEach(el=>el.classList.remove('blocked'));
+  const conflictIds=new Set(S.conflicts);
+  blockerConflictTaskIds().forEach(id=>conflictIds.add(id));
   const diffCol=S.diff==='easy'?' easy-col':S.diff==='hard'?' hard-col':'';
   for(const[tid,ev]of Object.entries(S.sched)){
     const task=taskById(tid);if(!task)continue;
     const row=document.getElementById('row-'+ev.person_id);if(!row)continue;
     const wSlots=Math.ceil(task.duration_minutes/SMIN);
-    const isCon=S.conflicts.has(tid);
+    const isCon=conflictIds.has(tid);
     const cls='ev'+diffCol+(isCon?' conflict':(S.simDone?' ok':''));
     const block=document.createElement('div');
     block.className=cls;
@@ -353,6 +419,23 @@ function refreshOverlays(){
     block.addEventListener('click',e=>{e.stopPropagation();pickupEvent(tid);});
     row.appendChild(block);
     for(let s=ev.slot;s<ev.slot+wSlots&&s<SLOTS;s++){
+      const sl=row.querySelector('[data-s="'+s+'"]');
+      if(sl)sl.classList.add('blocked');
+    }
+  }
+  for(const blocker of activeBlockers()){
+    const row=document.getElementById('row-'+blocker.person_id);
+    if(!row) continue;
+    const widthSlots=blockerSlotWidth(blocker);
+    const hasConflict=blockerHasConflict(blocker);
+    const block=document.createElement('div');
+    block.className='blocker'+(blocker.hidden_until?' hidden':'')+(hasConflict?' conflict':'');
+    block.style.left=(blocker.start_slot*SW)+'px';
+    block.style.width=(widthSlots*SW-2)+'px';
+    block.textContent=blocker.label.length>18?blocker.label.slice(0,16)+'\u2026':blocker.label;
+    block.title=blocker.label+' — '+blocker.notes+(blocker.hidden_until?' (surprise hold revealed as the day fills up)':'');
+    row.appendChild(block);
+    for(let s=blocker.start_slot;s<blocker.start_slot+widthSlots&&s<SLOTS;s++){
       const sl=row.querySelector('[data-s="'+s+'"]');
       if(sl)sl.classList.add('blocked');
     }
@@ -378,12 +461,19 @@ function assignSlot(personId,slot){
   if(isOccupied(personId,slot,task.duration_minutes)){toast('That person is already busy then.',true);return;}
   S.sched[tid]={person_id:personId,slot};
   S.selTask=null;S.conflicts=new Set();S.simDone=false;
+  const newlyRevealed=updateRevealState();
   renderTaskPanel();renderPeoplePanel();refreshOverlays();updateBadge();
   document.getElementById('results').style.display='none';
+  if(newlyRevealed.length){toast('New calendar hold revealed: '+newlyRevealed[0].label+'.');}
 }
 
 function isOccupied(personId,slot,durationMin){
   const w=Math.ceil(durationMin/SMIN);
+  for(const blocker of activeBlockers()){
+    if(blocker.person_id!==personId) continue;
+    const bw=blockerSlotWidth(blocker);
+    if(slotOverlap(slot,w,blocker.start_slot,bw)) return true;
+  }
   for(const[tid,ev]of Object.entries(S.sched)){
     if(ev.person_id!==personId)continue;
     const t=taskById(tid),ew=Math.ceil((t?t.duration_minutes:15)/SMIN);
@@ -439,7 +529,8 @@ function simulateNow(){
     const task=taskById(tid);if(!task)return null;
     return{task_id:tid,person_id:ev.person_id,start_min:slotMin(ev.slot),end_min:slotMin(ev.slot)+task.duration_minutes,location:task.location,resource_id:task.resource_id||null};
   }).filter(Boolean);
-  return{is_valid:false,conflicts:[...dblBook(events),...travBuf(events),...resCon(events)],scheduled_count:events.length};
+  const conflicts=[...dblBook(events),...travBuf(events),...resCon(events),...blockerConflicts(events)];
+  return{is_valid:conflicts.length===0,conflicts,scheduled_count:events.length};
 }
 function dblBook(ev){
   const by={};for(const e of ev)(by[e.person_id]=by[e.person_id]||[]).push(e);
@@ -459,11 +550,26 @@ function resCon(ev){
   for(const[rid,evs]of Object.entries(by)){const s=evs.slice().sort((a,b)=>a.start_min-b.start_min);for(let i=0;i<s.length-1;i++)if(s[i].end_min>s[i+1].start_min)out.push({type:'resource_conflict',resource_id:rid,task_a:s[i].task_id,task_b:s[i+1].task_id});}
   return out;
 }
+function blockerConflicts(ev){
+  const out=[];
+  for(const blocker of activeBlockers()){
+    const blockerWidth=blockerSlotWidth(blocker);
+    for(const item of ev){
+      if(item.person_id!==blocker.person_id) continue;
+      const taskWidth=item.end_min-item.start_min;
+      if(slotOverlap(Math.round((item.start_min-SH*60)/SMIN),Math.ceil(taskWidth/SMIN),blocker.start_slot,blockerWidth)){
+        out.push({type:'calendar_hold',person_id:blocker.person_id,task_id:item.task_id,blocker_id:blocker.blocker_id,blocker_label:blocker.label});
+      }
+    }
+  }
+  return out;
+}
 
 function fmtConflict(c){
   if(c.type==='double_booking'){const p=personById(c.person_id),ta=taskById(c.task_a),tb=taskById(c.task_b);return'<b>Double booking:</b> '+escH(p?p.name:c.person_id)+' has "'+escH(ta?ta.description:c.task_a)+'" and "'+escH(tb?tb.description:c.task_b)+'" overlapping.';}
   if(c.type==='travel_buffer'){const p=personById(c.person_id),ta=taskById(c.from_task),tb=taskById(c.to_task);return'<b>Travel gap:</b> '+escH(p?p.name:c.person_id)+' needs 30+ min between "'+escH(ta?ta.description:c.from_task)+'" and "'+escH(tb?tb.description:c.to_task)+'".';}
   if(c.type==='resource_conflict'){const ta=taskById(c.task_a),tb=taskById(c.task_b);return'<b>Resource conflict:</b> "'+escH(ta?ta.description:c.task_a)+'" and "'+escH(tb?tb.description:c.task_b)+'" both need '+escH(c.resource_id)+'.';}
+  if(c.type==='calendar_hold'){const p=personById(c.person_id),task=taskById(c.task_id);return'<b>Calendar hold:</b> '+escH(p?p.name:c.person_id)+' already has "'+escH(c.blocker_label)+'" blocking "'+escH(task?task.description:c.task_id)+'".';}
   return escH(JSON.stringify(c));
 }
 
@@ -473,12 +579,12 @@ function runSim(){
   btn.disabled=true;btn.textContent='Running\u2026';
   const d=simulateNow();const panel=document.getElementById('results');
   panel.style.display='';S.simDone=true;
-  if(d.conflicts.length===0){
+  if(d.is_valid){
     S.conflicts=new Set();
     panel.innerHTML='<h3>Simulation Result</h3><div class="valid-msg">\u2713 No conflicts!</div><div class="info">'+d.scheduled_count+' events checked.</div>';
   }else{
     S.conflicts=new Set();
-    d.conflicts.forEach(c=>{if(c.task_a)S.conflicts.add(c.task_a);if(c.task_b)S.conflicts.add(c.task_b);if(c.from_task)S.conflicts.add(c.from_task);if(c.to_task)S.conflicts.add(c.to_task);});
+    d.conflicts.forEach(c=>{if(c.task_a)S.conflicts.add(c.task_a);if(c.task_b)S.conflicts.add(c.task_b);if(c.from_task)S.conflicts.add(c.from_task);if(c.to_task)S.conflicts.add(c.to_task);if(c.task_id)S.conflicts.add(c.task_id);});
     panel.innerHTML='<h3>Simulation Result \u2014 '+d.conflicts.length+' Conflict(s)</h3>'+
       d.conflicts.map(c=>'<div class="citem">\u26a0 '+fmtConflict(c)+'</div>').join('')+
       '<div class="info">Red = conflict. Reschedule and simulate again.</div>';
