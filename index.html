@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#0f1117">
 <title>Family Chaos — Scheduling Game</title>
+<link rel="stylesheet" href="./cup-ui/cup.css">
+<script type="module" src="./cup-ui/cup.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -335,6 +337,21 @@ function personTooltip(person){
   ].filter(Boolean);
   return parts.join('\n');
 }
+function calendarSlotDefs(){
+  return Array.from({length:SLOTS},(_,s)=>{
+    const isHour=s%4===0;
+    const isHalf=s%2===0&&!isHour;
+    return {index:s,label:isHour?slotLabel(s):isHalf?'·':'',half:isHalf,minor:!isHour};
+  });
+}
+function calendarRowsData(){
+  return S.people.map(person=>({
+    personId:person.person_id,
+    label:person.name.replace(/ \(.*?\)$/,''),
+    fullName:person.name,
+    canDrive:person.can_drive,
+  }));
+}
 function diffTaskCount(diff){return (DIFF_TASKS[diff]||[]).length;}
 function slotOverlap(startA,durationA,startB,durationB){return startA<startB+durationB&&startA+durationA>startB;}
 function blockerSlotWidth(blocker){return Math.max(1,Math.ceil(blocker.duration_minutes/SMIN));}
@@ -516,54 +533,47 @@ function renderGrid(){
   if(!S.people.length)return;
   const hint=document.getElementById('grid-hint');
   if(hint)hint.style.display='none';
-  let h='<div class="grid-wrap"><div class="g-head"><div style="width:var(--name-w);flex-shrink:0"></div>';
-  for(let s=0;s<SLOTS;s++){
-    const isHour=s%4===0,isHalf=s%2===0&&!isHour;
-    h+='<div class="g-tlabel'+(isHalf?' half':'')+'">'+
-      (isHour?slotLabel(s):isHalf?'&middot;':'')+'</div>';
-  }
-  h+='</div>';
-  for(const p of S.people){
-    const noDriver=!p.can_drive?'<span class="nd" title="Cannot drive">P</span>':'';
-    h+='<div class="g-row"><div class="g-name" data-gpid="'+p.person_id+'">'+
-      '<span class="hap" id="hap-'+p.person_id+'"></span>'+
-      '<span class="g-name-text">'+escH(p.name.replace(/ \(.*?\)$/,''))+'</span>'+noDriver+'</div>'+
-      '<div class="g-slots" id="row-'+p.person_id+'">';
-    for(let s=0;s<SLOTS;s++){
-      const cls=s%2!==0?' class="g-slot half-mark"':' class="g-slot"';
-      h+='<div'+cls+' data-pid="'+p.person_id+'" data-s="'+s+'"></div>';
-    }
-    h+='</div></div>';
-  }
-  h+='</div>';
-  area.innerHTML=h;
-  area.querySelectorAll('[data-gpid]').forEach(el=>{
-    const person=personById(el.dataset.gpid);
-    if(person)bindQuickTooltip(el,personTooltip(person));
-    el.addEventListener('click',e=>{e.stopPropagation();showPOV(el.dataset.gpid);});
+  area.innerHTML='<cup-calendar id="game-calendar"></cup-calendar>';
+  const calendar=area.querySelector('#game-calendar');
+  calendar.data={
+    label:'Family Chaos schedule',
+    nameWidth:176,
+    slotWidth:SW,
+    rowHeight:46,
+    slots:calendarSlotDefs(),
+    rows:calendarRowsData(),
+  };
+  requestAnimationFrame(()=>{
+    area.querySelectorAll('[data-gpid]').forEach(el=>{
+      const person=personById(el.dataset.gpid);
+      if(person)bindQuickTooltip(el,personTooltip(person));
+      el.addEventListener('click',e=>{e.stopPropagation();showPOV(el.dataset.gpid);});
+    });
+    area.querySelectorAll('[data-s]').forEach(el=>el.addEventListener('click',()=>assignSlot(el.dataset.pid,+el.dataset.s)));
+    refreshOverlays();
   });
-  area.querySelectorAll('[data-s]').forEach(el=>el.addEventListener('click',()=>assignSlot(el.dataset.pid,+el.dataset.s)));
-  refreshOverlays();
 }
 
 function refreshOverlays(){
-  document.querySelectorAll('.ev').forEach(e=>e.remove());
+  document.querySelectorAll('cup-calendar-block,.ev').forEach(e=>e.remove());
   document.querySelectorAll('.g-slot').forEach(el=>el.classList.remove('blocked'));
+  document.querySelectorAll('.cup-calendar-row___slot').forEach(el=>el.classList.remove('blocked'));
   const conflictIds=new Set(S.conflicts);
   blockerConflictTaskIds().forEach(id=>conflictIds.add(id));
-  const diffCol=S.diff==='easy'?' easy-col':S.diff==='hard'?' hard-col':'';
   for(const[tid,ev]of Object.entries(S.sched)){
     const task=taskById(tid);if(!task)continue;
     const row=document.getElementById('row-'+ev.person_id);if(!row)continue;
     const wSlots=Math.ceil(task.duration_minutes/SMIN);
     const isCon=conflictIds.has(tid);
-    const cls='ev'+diffCol+(isCon?' conflict':(S.simDone?' ok':''));
-    const block=document.createElement('div');
-    block.className=cls;
+    const block=document.createElement('cup-calendar-block');
     block.style.left=(ev.slot*SW)+'px';
     block.style.width=(wSlots*SW-2)+'px';
     const lbl=task.description.length>18?task.description.slice(0,16)+'\u2026':task.description;
-    block.textContent=lbl;
+    block.setAttribute('kind','event');
+    block.setAttribute('tone',S.diff);
+    if(isCon) block.setAttribute('state','conflict');
+    else if(S.simDone) block.setAttribute('state','ok');
+    block.setAttribute('label',lbl);
     const taskTip=taskTooltip(task,ev.slot);
     bindQuickTooltip(block,taskTip);
     block.addEventListener('click',e=>{e.stopPropagation();pickupEvent(tid);});
@@ -578,11 +588,13 @@ function refreshOverlays(){
     if(!row) continue;
     const widthSlots=blockerSlotWidth(blocker);
     const hasConflict=blockerHasConflict(blocker);
-    const block=document.createElement('div');
-    block.className='blocker'+(blocker.hidden_until?' hidden':'')+(hasConflict?' conflict':'');
+    const block=document.createElement('cup-calendar-block');
     block.style.left=(blocker.start_slot*SW)+'px';
     block.style.width=(widthSlots*SW-2)+'px';
-    block.textContent=blocker.label.length>18?blocker.label.slice(0,16)+'\u2026':blocker.label;
+    block.setAttribute('kind','blocker');
+    if(blocker.hidden_until) block.setAttribute('hidden','');
+    if(hasConflict) block.setAttribute('state','conflict');
+    block.setAttribute('label',blocker.label.length>18?blocker.label.slice(0,16)+'\u2026':blocker.label);
     const blockerTip=blockerTooltip(blocker);
     bindQuickTooltip(block,blockerTip);
     block.addEventListener('click',e=>e.stopPropagation());
