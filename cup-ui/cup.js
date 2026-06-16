@@ -28,8 +28,10 @@ import './components/cup-toggle.js';
 import './components/cup-badge.js';
 import './components/cup-chip.js';
 import './components/cup-calendar.js';
+import './components/cup-calendar-toolbar.js';
 import './components/cup-calendar-row.js';
 import './components/cup-calendar-block.js';
+import './components/cup-calendar-event.js';
 
 // Component (organism)
 import './components/cup-toast.js';

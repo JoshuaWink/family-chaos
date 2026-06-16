@@ -141,12 +141,132 @@
     z-index: var(--cup-z-toast);
   }
 
-  /* ── Calendar ── */
+  /* ═══════════════════════════════════════════════════════════════
+     Cup Calendar Design System
+     Components: cup-calendar, cup-calendar-toolbar, cup-calendar-row,
+                 cup-calendar-event, cup-calendar-block (legacy alias)
+     ═══════════════════════════════════════════════════════════════ */
+
+  /* ── Design tokens ─────────────────────────────────────────────── */
+  .cup-calendar-host,
+  .cup-toolbar-host,
+  .cup-calendar-row-host,
+  .cup-cal-event-host {
+    --cup-cal-hour-height:    48px;   /* vertical px per hour in TimeGrid */
+    --cup-cal-gutter-w:       72px;   /* time-label column width */
+    --cup-cal-col-header-h:   72px;   /* day-name + date-number header row */
+    --cup-cal-allday-h:       32px;   /* all-day events strip */
+    --cup-cal-event-radius:   6px;    /* pill border-radius (matches Google) */
+    --cup-cal-event-font:     13px;
+    --cup-cal-now-color:      #ea4335; /* Google's red */
+    /* timeline legacy tokens */
+    --cup-calendar-name-width:  11rem;
+    --cup-calendar-slot-width:  1.625rem;
+    --cup-calendar-row-height:  2.875rem;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────
+     TOOLBAR  (cup-calendar-toolbar)
+     ───────────────────────────────────────────────────────────────── */
+  .cup-toolbar-host {
+    display: block;
+  }
+
+  .cup-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--cup-space-md);
+    padding: var(--cup-space-sm) var(--cup-space-md);
+    border-bottom: 1px solid var(--cup-color-border);
+    background: var(--cup-color-surface);
+    flex-wrap: wrap;
+  }
+
+  .cup-toolbar___nav {
+    display: flex;
+    align-items: center;
+    gap: var(--cup-space-2xs);
+  }
+
+  .cup-toolbar___nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 var(--cup-space-sm);
+    border: 1px solid var(--cup-color-border);
+    border-radius: var(--cup-radius-sm);
+    background: var(--cup-color-surface);
+    color: var(--cup-color-on-surface);
+    font-size: var(--cup-font-size-sm);
+    cursor: pointer;
+    transition: background-color var(--cup-transition-fast),
+                border-color var(--cup-transition-fast);
+    white-space: nowrap;
+  }
+
+  .cup-toolbar___nav-btn:hover {
+    background: var(--cup-color-surface-alt);
+    border-color: var(--cup-color-primary);
+  }
+
+  .cup-toolbar___nav-btn--icon {
+    width: 36px;
+    padding: 0;
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  .cup-toolbar___title {
+    flex: 1;
+    margin: 0;
+    font-size: var(--cup-font-size-lg);
+    font-weight: var(--cup-font-weight-medium);
+    color: var(--cup-color-on-surface);
+    white-space: nowrap;
+  }
+
+  .cup-toolbar___views {
+    display: flex;
+    gap: 2px;
+    background: var(--cup-color-surface-alt);
+    border-radius: var(--cup-radius-sm);
+    padding: 2px;
+  }
+
+  .cup-toolbar___view-btn {
+    height: 32px;
+    padding: 0 var(--cup-space-sm);
+    border: none;
+    border-radius: calc(var(--cup-radius-sm) - 2px);
+    background: transparent;
+    color: var(--cup-color-secondary);
+    font-size: var(--cup-font-size-sm);
+    cursor: pointer;
+    transition: background-color var(--cup-transition-fast),
+                color var(--cup-transition-fast);
+    white-space: nowrap;
+  }
+
+  .cup-toolbar___view-btn:hover {
+    background: var(--cup-color-surface);
+    color: var(--cup-color-on-surface);
+  }
+
+  .cup-toolbar___view-btn--active {
+    background: var(--cup-color-surface);
+    color: var(--cup-color-primary);
+    font-weight: var(--cup-font-weight-medium);
+    box-shadow: var(--cup-shadow-sm);
+  }
+
+  /* ─────────────────────────────────────────────────────────────────
+     TIMELINE VIEW  (cup-calendar + cup-calendar-row)
+     Horizontal time axis — resources as rows (Family Chaos style)
+     ───────────────────────────────────────────────────────────────── */
   .cup-calendar-host {
     display: block;
-    --cup-calendar-name-width: 11rem;
-    --cup-calendar-slot-width: 1.625rem;
-    --cup-calendar-row-height: 2.875rem;
+    overflow-x: auto;
   }
 
   .cup-calendar {
@@ -157,8 +277,14 @@
 
   .cup-calendar___head {
     display: grid;
-    grid-template-columns: var(--cup-calendar-name-width) repeat(auto-fit, minmax(var(--cup-calendar-slot-width), var(--cup-calendar-slot-width)));
+    grid-template-columns:
+      var(--cup-calendar-name-width)
+      repeat(auto-fit, minmax(var(--cup-calendar-slot-width), var(--cup-calendar-slot-width)));
     align-items: end;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--cup-color-surface);
   }
 
   .cup-calendar___name-spacer {
@@ -182,6 +308,11 @@
     opacity: 0.55;
   }
 
+  .cup-calendar___tick--minor {
+    border-right-color: transparent;
+  }
+
+  /* ── Timeline row ──────────────────────────────────────────────── */
   .cup-calendar-row-host {
     display: block;
   }
@@ -200,21 +331,21 @@
     gap: var(--cup-space-xs);
     padding: 0 var(--cup-space-sm);
     border: 0;
-    border-right: 1px solid var(--cup-color-border);
+    border-right: 2px solid var(--cup-color-border);
     background: var(--cup-color-surface-alt);
     color: var(--cup-color-on-surface);
     cursor: pointer;
     text-align: left;
-    transition: background-color var(--cup-transition-fast), color var(--cup-transition-fast);
+    transition: background-color var(--cup-transition-fast);
   }
 
   .cup-calendar-row___label:hover {
-    background: color-mix(in srgb, var(--cup-color-surface-alt) 76%, var(--cup-color-primary));
+    background: color-mix(in srgb, var(--cup-color-surface-alt) 72%, var(--cup-color-primary));
   }
 
   .cup-calendar-row___pulse {
-    width: 0.5rem;
-    height: 0.5rem;
+    width: 8px;
+    height: 8px;
     border-radius: var(--cup-radius-full);
     flex-shrink: 0;
     background: var(--cup-color-secondary);
@@ -255,11 +386,15 @@
   }
 
   .cup-calendar-row___slot:hover {
-    background: color-mix(in srgb, var(--cup-color-primary) 16%, transparent);
+    background: color-mix(in srgb, var(--cup-color-primary) 14%, transparent);
   }
 
   .cup-calendar-row___slot--half {
     border-right-style: dashed;
+  }
+
+  .cup-calendar-row___slot--minor {
+    border-right-color: transparent;
   }
 
   .cup-calendar-row___slot.blocked {
@@ -267,62 +402,308 @@
     cursor: default;
   }
 
-  cup-calendar-block {
-    position: absolute;
-    top: var(--cup-space-2xs);
-    height: calc(100% - var(--cup-space-xs));
+  /* ─────────────────────────────────────────────────────────────────
+     TIMEGRID VIEW  (cup-calendar--tg)
+     Vertical time axis — columns per day (Google Calendar style)
+     ───────────────────────────────────────────────────────────────── */
+  .cup-calendar-host--tg {
     display: block;
-    pointer-events: auto;
+    overflow: hidden;
   }
 
-  .cup-calendar-block {
+  .cup-tg {
+    display: flex;
+    flex-direction: column;
     height: 100%;
+    font-size: var(--cup-font-size-sm);
+  }
+
+  /* Sticky column-header row */
+  .cup-tg___col-headers {
+    display: flex;
+    border-bottom: 1px solid var(--cup-color-border);
+    background: var(--cup-color-surface);
+    position: sticky;
+    top: 0;
+    z-index: 3;
+  }
+
+  .cup-tg___gutter-spacer {
+    width: var(--cup-cal-gutter-w);
+    min-width: var(--cup-cal-gutter-w);
+    flex-shrink: 0;
+    border-right: 1px solid var(--cup-color-border);
+  }
+
+  .cup-tg___col-header {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: var(--cup-cal-col-header-h);
+    border-right: 1px solid var(--cup-color-border);
+    color: var(--cup-color-secondary);
+    cursor: default;
+  }
+
+  .cup-tg___col-header--today {
+    color: var(--cup-color-primary);
+  }
+
+  .cup-tg___weekday {
+    font-size: var(--cup-font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: var(--cup-font-weight-medium);
+  }
+
+  .cup-tg___date-num {
+    font-size: 1.5rem;
+    font-weight: 400;
+    line-height: 1;
+  }
+
+  .cup-tg___date-num--today {
     display: flex;
     align-items: center;
-    padding: 0 var(--cup-space-sm);
-    border-radius: var(--cup-radius-sm);
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    font-size: var(--cup-font-size-xs);
-    font-weight: var(--cup-font-weight-bold);
-    border: 1px solid transparent;
-    box-shadow: var(--cup-shadow-sm);
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--cup-radius-full);
+    background: var(--cup-color-primary);
+    color: var(--cup-color-on-primary);
+    font-weight: var(--cup-font-weight-medium);
+    font-size: 1rem;
   }
 
-  .cup-calendar-block--event {
-    background: color-mix(in srgb, var(--cup-color-primary) 70%, var(--cup-color-surface));
+  /* Scrollable body */
+  .cup-tg___body-wrap {
+    display: flex;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Hour label gutter */
+  .cup-tg___gutter {
+    width: var(--cup-cal-gutter-w);
+    min-width: var(--cup-cal-gutter-w);
+    flex-shrink: 0;
+    position: relative;
+    border-right: 1px solid var(--cup-color-border);
+  }
+
+  .cup-tg___hour-label {
+    position: absolute;
+    right: var(--cup-space-xs);
+    transform: translateY(-50%);
+    font-size: var(--cup-font-size-xs);
+    color: var(--cup-color-secondary);
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Day columns container */
+  .cup-tg___cols {
+    flex: 1;
+    display: flex;
+  }
+
+  /* Single day column */
+  .cup-tg___col {
+    flex: 1;
+    position: relative;
+    border-right: 1px solid var(--cup-color-border);
+    min-width: 0;
+  }
+
+  /* Invisible clickable slot buttons (fill the column) */
+  .cup-tg___slot-btn {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: calc(var(--cup-cal-hour-height) / 4); /* 15-min default */
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    z-index: 0;
+    transition: background-color var(--cup-transition-fast);
+  }
+
+  .cup-tg___slot-btn:hover {
+    background: color-mix(in srgb, var(--cup-color-primary) 10%, transparent);
+    z-index: 1;
+  }
+
+  /* Horizontal grid lines */
+  .cup-tg___line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--cup-color-border);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .cup-tg___line--half {
+    opacity: 0.45;
+  }
+
+  /* Now indicator */
+  .cup-tg___now-circle {
+    position: absolute;
+    left: -5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--cup-cal-now-color);
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  .cup-tg___now-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--cup-cal-now-color);
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────
+     EVENT PILL  (cup-calendar-event + cup-calendar-block legacy)
+     ───────────────────────────────────────────────────────────────── */
+
+  /* Host element — absolute in timeline row or timegrid column */
+  cup-calendar-event,
+  cup-calendar-block {
+    position: absolute;
+    display: block;
+    pointer-events: auto;
+    /* timeline defaults — overridden by inline style.top/height for timegrid */
+    top: 3px;
+    height: calc(100% - 6px);
+  }
+
+  .cup-cal-event-host {
+    height: 100%;
+  }
+
+  .cup-cal-event {
+    height: 100%;
+    display: flex;
+    align-items: flex-start;
+    padding: 3px var(--cup-space-sm);
+    border-radius: var(--cup-cal-event-radius);
+    overflow: hidden;
+    font-size: var(--cup-cal-event-font);
+    font-weight: var(--cup-font-weight-medium);
+    border: 1px solid transparent;
+    box-shadow: var(--cup-shadow-sm);
+    position: relative;
+    cursor: default;
+    transition: opacity var(--cup-transition-fast),
+                box-shadow var(--cup-transition-fast);
+    background: var(--cup-event-bg, color-mix(in srgb, var(--cup-color-primary) 70%, var(--cup-color-surface)));
     color: var(--cup-color-on-surface);
+    user-select: none;
+  }
+
+  .cup-cal-event___label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    line-height: 1.3;
+  }
+
+  /* Resize handle — bottom edge */
+  .cup-cal-event___resize-handle {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    cursor: ns-resize;
+    background: transparent;
+  }
+
+  .cup-cal-event___resize-handle::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 3px;
+    border-radius: 2px;
+    background: color-mix(in srgb, currentColor 40%, transparent);
+  }
+
+  /* Drag states */
+  .cup-cal-event--dragging {
+    opacity: 0.75;
+    box-shadow: var(--cup-shadow-lg);
+    cursor: grabbing;
+    z-index: 10;
+  }
+
+  .cup-cal-event--resizing {
+    opacity: 0.9;
+    z-index: 10;
+  }
+
+  .cup-cal-event--draggable {
     cursor: grab;
   }
 
-  .cup-calendar-block--easy {
-    background: color-mix(in srgb, var(--cup-color-success) 72%, var(--cup-color-surface));
+  /* ── Tone variants (game + general use) ──────────────────────── */
+  .cup-cal-event--event {
+    --cup-event-bg: color-mix(in srgb, var(--cup-color-primary) 70%, var(--cup-color-surface));
   }
 
-  .cup-calendar-block--hard {
-    background: color-mix(in srgb, #8b5cf6 72%, var(--cup-color-surface));
+  .cup-cal-event--easy {
+    --cup-event-bg: color-mix(in srgb, var(--cup-color-success) 72%, var(--cup-color-surface));
   }
 
-  .cup-calendar-block--ok {
-    background: color-mix(in srgb, var(--cup-color-success) 76%, var(--cup-color-surface));
+  .cup-cal-event--hard {
+    --cup-event-bg: color-mix(in srgb, #8b5cf6 72%, var(--cup-color-surface));
   }
 
-  .cup-calendar-block--conflict {
-    background: color-mix(in srgb, var(--cup-color-error) 78%, var(--cup-color-surface)) !important;
+  /* ── State variants ──────────────────────────────────────────── */
+  .cup-cal-event--ok {
+    --cup-event-bg: color-mix(in srgb, var(--cup-color-success) 76%, var(--cup-color-surface));
+  }
+
+  .cup-cal-event--conflict {
+    --cup-event-bg: color-mix(in srgb, var(--cup-color-error) 78%, var(--cup-color-surface)) !important;
     color: var(--cup-color-on-error);
+    border-color: var(--cup-color-error);
   }
 
-  .cup-calendar-block--blocker {
-    background: color-mix(in srgb, var(--cup-color-secondary) 16%, var(--cup-color-surface));
-    color: var(--cup-color-on-surface);
+  .cup-cal-event--blocker {
+    --cup-event-bg: color-mix(in srgb, var(--cup-color-secondary) 16%, var(--cup-color-surface));
     border-color: color-mix(in srgb, var(--cup-color-secondary) 45%, transparent);
     border-style: dashed;
     cursor: help;
   }
 
-  .cup-calendar-block--hidden {
+  .cup-cal-event--hidden {
     opacity: 0.72;
+  }
+
+  .cup-cal-event--background {
+    opacity: 0.3;
+    pointer-events: none;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
   }
 
   /* ── Navigation ── */
