@@ -5,18 +5,27 @@ GAME_DATE = "2026-06-15"
 
 GAME_UI_HTML: str = """\
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Family Chaos — Scheduling Game</title>
+<link rel="stylesheet" href="/cup-ui/cup.css">
+<script type="module" src="/cup-ui/cup.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#0f1117;--surf:#1a1d27;--surf2:#242838;--border:#2e3248;
   --accent:#7c6af7;--accent2:#f7931e;--text:#e2e8f0;--muted:#6b7280;
   --danger:#ef4444;--success:#22c55e;--warn:#f59e0b;
-  --slot-w:44px;--row-h:46px;--name-w:176px;
+  /* Bridge game palette → cup tokens so the calendar inherits the dark theme */
+  --cup-color-bg:#0f1117;
+  --cup-color-surface:#1a1d27;
+  --cup-color-surface-alt:#242838;
+  --cup-color-border:#2e3248;
+  --cup-color-fg:#e2e8f0;
+  --cup-color-secondary:#6b7280;
+  --cup-color-primary:#7c6af7;
 }
 html,body{height:100%;overflow:hidden}
 body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:13px;display:flex;flex-direction:column}
@@ -50,6 +59,9 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
 .tm .res{color:var(--accent2)}
 .tc-notes{font-size:10px;color:var(--muted);line-height:1.6;margin-top:5px;padding-top:5px;border-top:1px solid var(--border);display:none}
 .tc.sel .tc-notes{display:block}
+/* task tooltip — override shared nowrap so long text wraps inside the card */
+.cup-cal-tooltip .cup-cal-ev-card___title{white-space:normal;overflow:visible;text-overflow:unset}
+.cup-cal-tooltip .cup-cal-ev-card___text{white-space:normal;overflow:visible;text-overflow:unset;overflow-wrap:anywhere;word-break:break-word}
 /* people cards */
 .pc{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;transition:background .1s}
 .pc:hover{background:var(--surf2)}
@@ -66,25 +78,36 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
 .pc-bio{font-size:10px;color:var(--muted);line-height:1.6;margin-bottom:5px}
 .pc-likes{font-size:10px;color:var(--muted)}.pc-likes em{color:var(--accent);font-style:normal}
 .pc-load{font-size:10px;color:var(--muted);margin-top:4px}
-/* grid */
-#grid-area{flex:1;overflow:auto;min-height:0;min-width:0}
+/* grid area — sized container, cup-calendar fills it (mirrors .demo-cal-wrap in cup-calendar-demo.html) */
+#grid-area{flex:1;min-height:0;min-width:0;overflow:hidden;border:1px solid var(--cup-color-border,var(--border));background:var(--cup-color-surface,var(--surf));display:flex;flex-direction:column}
+#game-cal{flex:1;min-height:0;height:100%}
 .hint{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:var(--muted);text-align:center;padding:32px}
 .hint p{font-size:15px;color:var(--text);font-weight:600}
 .hint small{font-size:12px;max-width:300px;line-height:1.5}
-.grid-wrap{padding:10px 14px;min-width:max-content}
-.g-head{display:flex;padding-left:var(--name-w)}
-.g-tlabel{width:var(--slot-w);font-size:9px;color:var(--muted);text-align:center;flex-shrink:0;padding-bottom:3px;border-right:1px solid var(--surf2)}
-.g-row{display:flex;border-bottom:1px solid var(--border);height:var(--row-h)}.g-row:last-child{border-bottom:none}
-.g-name{width:var(--name-w);min-width:var(--name-w);display:flex;align-items:center;gap:5px;padding:0 8px;font-size:11px;font-weight:600;border-right:1px solid var(--border);background:var(--surf);flex-shrink:0;cursor:pointer;height:100%;transition:background .1s}
-.g-name:hover{background:var(--surf2)}
-.g-name-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hap{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--muted);transition:background .3s}
-.nd{font-size:9px;color:var(--danger);flex-shrink:0;cursor:default}
-.g-slots{display:flex;position:relative;height:100%;flex:1}
-.g-slot{width:var(--slot-w);height:100%;border-right:1px solid var(--surf2);flex-shrink:0;transition:background .1s;cursor:pointer}
-.g-slot:hover{background:rgba(124,106,247,.12)}.g-slot.blocked{cursor:default;pointer-events:none}
-.ev{position:absolute;top:3px;height:calc(100% - 6px);background:var(--accent);border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:9px;font-weight:700;white-space:nowrap;overflow:hidden;z-index:2;pointer-events:auto;cursor:grab;border:1px solid rgba(255,255,255,.1)}
-.ev.conflict{background:var(--danger)}.ev.ok{background:var(--success)}
+/* Override cup-calendar resource label style to match game theme */
+.cup-tg-h___label,.cup-tg___col-header{background:var(--surf)}
+.cup-tg___resource-label{color:var(--text);font-size:11px;font-weight:600}
+.cup-tg___resource-label:hover{background:var(--surf2)}
+/* Contact card (matches cup-calendar-demo.html #contact-cards) */
+.cc-card{display:flex;flex-direction:column;gap:0;min-width:260px;max-width:300px;font-size:12px;line-height:1.5;color:var(--cup-color-on-surface,var(--text))}
+.cc-header{display:flex;align-items:flex-start;gap:12px;padding:14px 14px 10px}
+.cc-avatar{width:48px;height:48px;border-radius:50%;flex-shrink:0;object-fit:cover}
+.cc-name{font-size:14px;font-weight:700;color:var(--cup-color-on-surface,var(--text));line-height:1.2}
+.cc-role{font-size:11px;color:var(--cup-color-secondary,var(--muted));margin-top:1px}
+.cc-status-row{display:flex;align-items:center;gap:5px;margin-top:5px}
+.cc-status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cc-status-label{font-size:10px;font-weight:600;letter-spacing:.03em}
+.cc-bio{padding:8px 14px 10px;font-size:11px;color:var(--cup-color-secondary,var(--muted));line-height:1.5;border-top:1px solid rgba(255,255,255,.07)}
+.cc-body{border-top:1px solid rgba(255,255,255,.07);padding:8px 14px 4px;display:grid;gap:5px}
+.cc-row{display:flex;align-items:flex-start;gap:8px}
+.cc-icon{flex-shrink:0;width:14px;text-align:center;opacity:.7;line-height:1.5}
+.cc-text{color:var(--cup-color-secondary,var(--muted));flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-word;white-space:normal}
+.cc-footer{border-top:1px solid rgba(255,255,255,.07);padding:7px 14px 10px;display:flex;align-items:center;justify-content:space-between}
+.cc-event-bar{display:flex;align-items:center;gap:6px}
+.cc-event-dots{display:flex;gap:3px}
+.cc-event-dot{width:6px;height:6px;border-radius:50%;background:var(--cup-color-primary,var(--accent));opacity:.35}
+.cc-event-dot--filled{opacity:1}
+.cc-event-count{font-size:10px;color:var(--cup-color-secondary,var(--muted))}
 /* person overlay */
 #pov{display:none;position:fixed;z-index:100;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:18px 18px 14px;width:288px;box-shadow:0 8px 30px rgba(0,0,0,.6);max-height:76vh;overflow-y:auto}
 .pov-close{position:absolute;top:10px;right:12px;cursor:pointer;color:var(--muted);font-size:18px;background:none;border:none;line-height:1;padding:0}
@@ -135,8 +158,9 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
   <div id="grid-area">
     <div class="hint" id="grid-hint">
       <p>Press New Game to begin</p>
-      <small>Schedule 12 tasks across 10 family members and helpers. Select a task in the panel, click a person&#39;s time slot to assign it, then Simulate to check for conflicts. Click person names in the grid to see full profiles.</small>
+      <small>Schedule tasks across family members. Select a task in the left panel, then click a time slot on the calendar to assign it. Drag placed events to reschedule. Press Simulate to check for conflicts.</small>
     </div>
+    <cup-calendar id="game-cal" style="display:none"></cup-calendar>
   </div>
 </div>
 <div id="results" style="display:none"></div>
@@ -147,9 +171,7 @@ header{background:var(--surf);border-bottom:1px solid var(--border);padding:8px 
 <script>
 const DATE = '2026-06-15';
 const SH = 7, EH = 23, SMIN = 30;
-const SLOTS = (EH - SH) * 60 / SMIN;
 const EH_LABEL = (EH - 12) + ' PM';
-const SW = 44;
 
 const S = {
   id: null, people: [], tasks: [], allTasks: [],
@@ -161,6 +183,22 @@ const S = {
 function taskById(id) { return S.allTasks.find(t => t.task_id === id); }
 function personById(id) { return S.people.find(p => p.person_id === id); }
 function firstName(p) { return p ? p.name.replace(/ \\(.*?\\)$/, '').trim() : ''; }
+
+// ── Contact card helpers (mirror cup-calendar-demo.html buildContactCard) ─────
+const _CC_PALETTE = ['#7c3aed','#0ea5e9','#10b981','#f59e0b','#ec4899','#ef4444','#06b6d4','#8b5cf6','#22c55e','#f43f5e'];
+function ccColorFor(id) {
+  const s = String(id || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return _CC_PALETTE[h % _CC_PALETTE.length];
+}
+function ccInitials(name) {
+  return String(name || '').split(/\\s+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
+}
+function ccHumanizeLocation(loc) {
+  if (!loc) return 'Unknown';
+  return String(loc).replace(/_/g, ' ').replace(/\\b\\w/g, c => c.toUpperCase());
+}
 function slotMin(s) { return SH * 60 + s * SMIN; }
 function slotIso(s) {
   const m = slotMin(s);
@@ -193,6 +231,7 @@ async function startGame() {
     document.getElementById('btn-ics').disabled = false;
     document.getElementById('results').style.display = 'none';
     document.getElementById('ics-input').onchange = onICSFile;
+    await initCalendar();
     renderAll();
     toast('Game started! Select a task, then click a time slot to schedule it.', false);
   } catch (e) {
@@ -205,7 +244,7 @@ async function startGame() {
 function renderAll() {
   renderTaskPanel();
   renderPeoplePanel();
-  renderGrid();
+  syncCalendar();
   updateBadge();
 }
 
@@ -234,17 +273,113 @@ function renderTaskPanel() {
     if (t.resource_id) meta += '<span class="res">&#128666; ' + escH(t.resource_id) + '</span>';
     const icsBadge = t.is_ics ? '<span class="ics-badge">ICS</span>' : '';
     const doneCheck = done ? ' \u2713' : '';
-    const notesDiv = t.notes ? '<div class="tc-notes">' + escH(t.notes) + '</div>' : '';
     return '<div class="tc' + (done ? ' done' : '') + (sel ? ' sel' : '') +
       '" data-tid="' + t.task_id + '">' +
       '<div class="tn">' + escH(t.description) + doneCheck + icsBadge + '</div>' +
       '<div class="tm">' + meta + '</div>' +
-      notesDiv + '</div>';
+      '</div>';
   }).join('');
   const panel = document.getElementById('tasks-panel');
   panel.innerHTML = html;
   panel.querySelectorAll('[data-tid]').forEach(el => {
     el.addEventListener('click', () => pickTask(el.dataset.tid));
+    bindTaskTooltip(el);
+  });
+}
+
+// Task tooltip — reuses cup-calendar's event-detail card markup so the
+// task hover matches the event pill tooltip exactly.
+const _TASK_TIP = { el: null, showT: null, hideT: null, owner: null };
+function _clearTaskTipTimers() {
+  if (_TASK_TIP.showT) { clearTimeout(_TASK_TIP.showT); _TASK_TIP.showT = null; }
+  if (_TASK_TIP.hideT) { clearTimeout(_TASK_TIP.hideT); _TASK_TIP.hideT = null; }
+}
+function _removeTaskTip() {
+  _clearTaskTipTimers();
+  if (_TASK_TIP.el) { _TASK_TIP.el.remove(); _TASK_TIP.el = null; }
+  _TASK_TIP.owner = null;
+}
+function taskTooltipHtml(t) {
+  const forP = t.for_person_id ? personById(t.for_person_id) : null;
+  const rows = [];
+  rows.push('<div class="cup-cal-ev-card___row">'
+    + '<span class="cup-cal-ev-card___icon">🕐</span>'
+    + '<span class="cup-cal-ev-card___text">' + t.duration_minutes + ' min'
+    + (t.travel_minutes > 0 ? ' <span class="cup-cal-ev-card___dim">(+' + t.travel_minutes + ' min travel)</span>' : '')
+    + '</span></div>');
+  if (forP) {
+    rows.push('<div class="cup-cal-ev-card___row">'
+      + '<span class="cup-cal-ev-card___icon">👤</span>'
+      + '<span class="cup-cal-ev-card___text">For ' + escH(firstName(forP)) + '</span>'
+      + '</div>');
+  }
+  if (t.location) {
+    rows.push('<div class="cup-cal-ev-card___row">'
+      + '<span class="cup-cal-ev-card___icon">📍</span>'
+      + '<span class="cup-cal-ev-card___text">' + escH(ccHumanizeLocation(t.location)) + '</span>'
+      + '</div>');
+  }
+  if (t.resource_id) {
+    rows.push('<div class="cup-cal-ev-card___row">'
+      + '<span class="cup-cal-ev-card___icon">🚚</span>'
+      + '<span class="cup-cal-ev-card___text">' + escH(ccHumanizeLocation(t.resource_id)) + '</span>'
+      + '</div>');
+  }
+  if (t.notes) {
+    rows.push('<div class="cup-cal-ev-card___row cup-cal-ev-card___row--desc">'
+      + '<span class="cup-cal-ev-card___icon">📝</span>'
+      + '<span class="cup-cal-ev-card___text">' + escH(t.notes) + '</span>'
+      + '</div>');
+  }
+  const badges = t.is_ics
+    ? '<div class="cup-cal-ev-card___badges"><span class="cup-cal-ev-card___badge cup-cal-ev-card___badge--normal">ICS</span></div>'
+    : '';
+  return '<div class="cup-cal-ev-card">'
+    + '<div class="cup-cal-ev-card___head">'
+    +   '<span class="cup-cal-ev-card___stripe" style="background:var(--accent)"></span>'
+    +   '<div class="cup-cal-ev-card___title-wrap">'
+    +     '<span class="cup-cal-ev-card___title">' + escH(t.description) + '</span>'
+    +     badges
+    +   '</div>'
+    + '</div>'
+    + '<div class="cup-cal-ev-card___body">' + rows.join('') + '</div>'
+    + '</div>';
+}
+function _showTaskTip(card, t) {
+  if (_TASK_TIP.el) _TASK_TIP.el.remove();
+  const tip = document.createElement('div');
+  tip.className = 'cup-cal-tooltip';
+  tip.innerHTML = taskTooltipHtml(t);
+  document.body.appendChild(tip);
+  const pr  = card.getBoundingClientRect();
+  const tr  = tip.getBoundingClientRect();
+  const gap = 8;
+  let left  = pr.right + gap;
+  if (left + tr.width > window.innerWidth - 8) left = pr.left - tr.width - gap;
+  if (left < 8) left = 8;
+  let top   = pr.top;
+  if (top + tr.height > window.innerHeight - 8) top = window.innerHeight - tr.height - 8;
+  if (top < 8) top = 8;
+  tip.style.top  = top  + 'px';
+  tip.style.left = left + 'px';
+  tip.addEventListener('mouseenter', _clearTaskTipTimers);
+  tip.addEventListener('mouseleave', () => { _TASK_TIP.hideT = setTimeout(_removeTaskTip, 120); });
+  _TASK_TIP.el = tip;
+  _TASK_TIP.owner = card;
+}
+function bindTaskTooltip(card) {
+  const tid = card.dataset.tid;
+  card.addEventListener('mouseenter', () => {
+    _clearTaskTipTimers();
+    if (_TASK_TIP.owner === card && _TASK_TIP.el) return;
+    const t = taskById(tid);
+    if (!t) return;
+    const delay = _TASK_TIP.el ? 0 : 300;
+    _TASK_TIP.showT = setTimeout(() => _showTaskTip(card, t), delay);
+  });
+  card.addEventListener('mouseleave', () => {
+    _clearTaskTipTimers();
+    _TASK_TIP.hideT = setTimeout(_removeTaskTip, 140);
   });
 }
 
@@ -287,68 +422,162 @@ function renderPeoplePanel() {
   });
 }
 
-// ── grid ──────────────────────────────────────────────────────────────────────
-function renderGrid() {
-  const area = document.getElementById('grid-area');
-  if (!S.people.length) return;
+// ── cup-calendar integration ──────────────────────────────────────────────────
+let _calReady = false;
+
+async function initCalendar() {
+  await customElements.whenDefined('cup-calendar');
+  _calReady = true;
+  const cal = document.getElementById('game-cal');
+  cal.style.display = '';
+  cal.style.height = '100%';
   const hint = document.getElementById('grid-hint');
   if (hint) hint.style.display = 'none';
-  let h = '<div class="grid-wrap">';
-  h += '<div class="g-head"><div style="width:var(--name-w);flex-shrink:0"></div>';
-  for (let s = 0; s < SLOTS; s++) {
-    h += '<div class="g-tlabel">' + (s % 2 === 0 ? slotLabel(s) : '') + '</div>';
-  }
-  h += '</div>';
-  for (const p of S.people) {
-    const noDriver = !p.can_drive ? '<span class="nd" title="Cannot drive">P</span>' : '';
-    h += '<div class="g-row">';
-    h += '<div class="g-name" data-gpid="' + p.person_id + '">' +
-      '<span class="hap" id="hap-' + p.person_id + '" title="Workload indicator"></span>' +
-      '<span class="g-name-text">' + escH(p.name.replace(/ \\(.*?\\)$/, '')) + '</span>' +
-      noDriver + '</div>';
-    h += '<div class="g-slots" id="row-' + p.person_id + '">';
-    for (let s = 0; s < SLOTS; s++) {
-      h += '<div class="g-slot" data-pid="' + p.person_id + '" data-s="' + s + '"></div>';
+
+  cal.setOption('view', 'resourceTimeline');
+  cal.setOption('slotMinTime', String(SH).padStart(2, '0') + ':00');
+  cal.setOption('slotMaxTime', String(EH).padStart(2, '0') + ':00');
+  cal.setOption('slotDuration', '00:30:00');
+  cal.setOption('editable', true);
+  cal.setOption('showTooltips', true);
+  cal.setOption('showEventModal', false);
+
+  cal.setResources(S.people.map(p => ({
+    id: p.person_id,
+    title: p.name.replace(/ \\(.*?\\)$/, '').trim() + (!p.can_drive ? ' \\u24c5' : ''),
+  })));
+
+  cal.setOption('resourceClick', ({ resourceId }) => showPOV(resourceId));
+
+  cal.setOption('resourceTooltip', ({ resourceId }) => {
+    const p = personById(resourceId);
+    if (!p) return null;
+    const pd = p.primary_driver_id ? personById(p.primary_driver_id) : null;
+    const taskLoad = Object.values(S.sched).filter(e => e.person_id === resourceId).length;
+    const tasksFor = S.allTasks.filter(t => t.for_person_id === resourceId);
+    const schedFor = tasksFor.filter(t => S.sched[t.task_id]);
+
+    const name = firstName(p);
+    const initials = ccInitials(name);
+    const color = ccColorFor(p.person_id);
+    const roleText = p.occupation ? p.occupation + (p.age > 0 ? ' \u00b7 age ' + p.age : '') : '';
+    const driveColor = p.can_drive ? '#22c55e' : '#f59e0b';
+    const driveLabel = p.can_drive
+      ? 'Available to drive'
+      : 'Needs transport' + (pd ? ' \u00b7 ' + escH(firstName(pd)) : '');
+
+    const avatarSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">'
+      + '<circle cx="24" cy="24" r="24" fill="' + color + '"/>'
+      + '<text x="24" y="30" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" font-weight="700" fill="white">' + escH(initials) + '</text>'
+      + '</svg>';
+    const avatarSrc = 'data:image/svg+xml;base64,' + btoa(avatarSvg);
+
+    const dotsMax = 5;
+    const filled  = Math.min(dotsMax, taskLoad);
+    const dotsHtml = Array.from({ length: dotsMax }, (_, i) =>
+      '<span class="cc-event-dot' + (i < filled ? ' cc-event-dot--filled' : '') + '"></span>'
+    ).join('');
+    const personalStr = tasksFor.length
+      ? ' \u00b7 ' + schedFor.length + '/' + tasksFor.length + ' personal'
+      : '';
+
+    const bioHtml = p.bio ? '<div class="cc-bio">' + escH(p.bio) + '</div>' : '';
+    const driverRow = pd
+      ? '<div class="cc-row"><span class="cc-icon">&#x1F697;</span><span class="cc-text">Driver: ' + escH(firstName(pd)) + '</span></div>'
+      : '';
+    const likesRow = p.likes
+      ? '<div class="cc-row"><span class="cc-icon">&#x2764;&#xFE0F;</span><span class="cc-text">' + escH(p.likes) + '</span></div>'
+      : '';
+
+    return '<div class="cc-card">'
+      + '<div class="cc-header">'
+      +   '<img class="cc-avatar" src="' + avatarSrc + '" alt="' + escH(initials) + '" width="48" height="48">'
+      +   '<div style="min-width:0;flex:1">'
+      +     '<div class="cc-name">' + escH(name) + '</div>'
+      +     (roleText ? '<div class="cc-role">' + escH(roleText) + '</div>' : '')
+      +     '<div class="cc-status-row">'
+      +       '<span class="cc-status-dot" style="background:' + driveColor + '"></span>'
+      +       '<span class="cc-status-label" style="color:' + driveColor + '">' + driveLabel + '</span>'
+      +     '</div>'
+      +   '</div>'
+      + '</div>'
+      + bioHtml
+      + '<div class="cc-body">'
+      +   '<div class="cc-row"><span class="cc-icon">&#x1F3E0;</span><span class="cc-text">' + escH(ccHumanizeLocation(p.home_location)) + '</span></div>'
+      +   (p.work_schedule ? '<div class="cc-row"><span class="cc-icon">&#x1F551;</span><span class="cc-text">' + escH(p.work_schedule) + '</span></div>' : '')
+      +   driverRow
+      +   likesRow
+      + '</div>'
+      + '<div class="cc-footer">'
+      +   '<div class="cc-event-bar">'
+      +     '<div class="cc-event-dots">' + dotsHtml + '</div>'
+      +     '<span class="cc-event-count">' + taskLoad + ' task' + (taskLoad === 1 ? '' : 's') + personalStr + '</span>'
+      +   '</div>'
+      + '</div>'
+      + '</div>';
+  });
+
+  cal.setOption('dateClick', ({ resourceId, mins }) => {
+    const slot = Math.floor((mins - SH * 60) / SMIN);
+    assignSlot(resourceId, slot);
+  });
+
+  cal.setOption('eventClick', ({ event }) => {
+    pickupEvent(String(event.id));
+  });
+
+  cal.setOption('eventDrop', ({ event, newStart, newResourceId }) => {
+    const tid = String(event.id);
+    const task = taskById(tid);
+    if (!task) return;
+    const slot = Math.floor((newStart - SH * 60) / SMIN);
+    if (isOccupied(newResourceId, slot, task.duration_minutes, tid)) {
+      toast('That slot is already occupied.', true);
+      syncCalendar();
+      return;
     }
-    h += '</div></div>';
-  }
-  h += '</div>';
-  area.innerHTML = h;
-  area.querySelectorAll('[data-gpid]').forEach(el => {
-    el.addEventListener('click', e => { e.stopPropagation(); showPOV(el.dataset.gpid); });
+    S.sched[tid] = { person_id: newResourceId, slot };
+    S.simDone = false;
+    S.conflicts = new Set();
+    document.getElementById('results').style.display = 'none';
+    renderTaskPanel(); renderPeoplePanel(); updateBadge(); syncCalendar();
+    const body = {
+      task_id: tid, person_id: newResourceId,
+      start_time: slotIso(slot), duration_minutes: task.duration_minutes,
+      location: task.location,
+    };
+    if (task.resource_id) body.resource_id = task.resource_id;
+    fetch('/game/' + S.id + '/schedule', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    }).then(r => r.json()).then(d => {
+      if (!d.ok) toast('Could not move event: ' + (d.error || '?'), true);
+    }).catch(e => toast('Error: ' + e.message, true));
   });
-  area.querySelectorAll('[data-s]').forEach(el => {
-    el.addEventListener('click', () => assignSlot(el.dataset.pid, +el.dataset.s));
-  });
-  refreshOverlays();
+
+  syncCalendar();
 }
 
-function refreshOverlays() {
-  document.querySelectorAll('.ev').forEach(e => e.remove());
-  document.querySelectorAll('.g-slot').forEach(el => el.classList.remove('blocked'));
+function syncCalendar() {
+  if (!_calReady) return;
+  const cal = document.getElementById('game-cal');
+  if (!cal) return;
+  const events = [];
   for (const [tid, ev] of Object.entries(S.sched)) {
     const task = taskById(tid);
     if (!task) continue;
-    const row = document.getElementById('row-' + ev.person_id);
-    if (!row) continue;
-    const wSlots = Math.ceil(task.duration_minutes / SMIN);
     const isCon = S.conflicts.has(tid);
-    const cls = 'ev' + (isCon ? ' conflict' : (S.simDone ? ' ok' : ''));
-    const block = document.createElement('div');
-    block.className = cls;
-    block.style.left = (ev.slot * SW) + 'px';
-    block.style.width = (wSlots * SW - 2) + 'px';
-    const label = task.description.length > 20 ? task.description.slice(0, 18) + '\u2026' : task.description;
-    block.textContent = label;
-    block.title = task.description + ' (' + task.duration_minutes + 'm) \u2014 click to move';
-    block.addEventListener('click', e => { e.stopPropagation(); pickupEvent(tid); });
-    row.appendChild(block);
-    for (let s = ev.slot; s < ev.slot + wSlots && s < SLOTS; s++) {
-      const sl = row.querySelector('[data-s="' + s + '"]');
-      if (sl) sl.classList.add('blocked');
-    }
+    const color = isCon ? '#ef4444' : (S.simDone ? '#22c55e' : (task.is_ics ? '#f7931e' : '#7c6af7'));
+    events.push({
+      id: tid,
+      title: task.description,
+      startMins: slotMin(ev.slot),
+      durationMins: task.duration_minutes,
+      resourceId: ev.person_id,
+      color,
+      description: task.notes || '',
+    });
   }
-  updateHappiness();
+  cal.setEvents(events);
 }
 
 // ── task interaction ──────────────────────────────────────────────────────────
@@ -363,7 +592,7 @@ function pickupEvent(tid) {
   S.selTask = tid;
   S.simDone = false;
   S.conflicts = new Set();
-  renderTaskPanel(); renderPeoplePanel(); refreshOverlays(); updateBadge();
+  renderTaskPanel(); renderPeoplePanel(); syncCalendar(); updateBadge();
   document.getElementById('results').style.display = 'none';
   toast('Picked up \u2014 click a new slot to place, or Esc to cancel.');
 }
@@ -374,7 +603,8 @@ async function assignSlot(personId, slot) {
   const task = taskById(tid);
   if (!task || S.sched[tid]) return;
   const wSlots = Math.ceil(task.duration_minutes / SMIN);
-  if (slot + wSlots > SLOTS) { toast('Task extends past ' + EH_LABEL + ' \u2014 pick an earlier slot.', true); return; }
+  const maxSlot = (EH - SH) * 60 / SMIN;
+  if (slot + wSlots > maxSlot) { toast('Task extends past ' + EH_LABEL + ' \u2014 pick an earlier slot.', true); return; }
   if (isOccupied(personId, slot, task.duration_minutes)) {
     toast('That person is already busy at that time.', true); return;
   }
@@ -391,14 +621,15 @@ async function assignSlot(personId, slot) {
     if (!d.ok) { toast('Could not schedule: ' + (d.error || '?'), true); return; }
     S.sched[tid] = { person_id: personId, slot };
     S.selTask = null; S.conflicts = new Set(); S.simDone = false;
-    renderTaskPanel(); renderPeoplePanel(); refreshOverlays(); updateBadge();
+    renderTaskPanel(); renderPeoplePanel(); syncCalendar(); updateBadge();
     document.getElementById('results').style.display = 'none';
   } catch (e) { toast('Error: ' + e.message, true); }
 }
 
-function isOccupied(personId, slot, durationMin) {
+function isOccupied(personId, slot, durationMin, excludeTid) {
   const w = Math.ceil(durationMin / SMIN);
   for (const [tid, ev] of Object.entries(S.sched)) {
+    if (excludeTid && tid === excludeTid) continue;
     if (ev.person_id !== personId) continue;
     const t = taskById(tid);
     const ew = Math.ceil((t ? t.duration_minutes : 30) / SMIN);
@@ -450,19 +681,6 @@ document.addEventListener('keydown', e => {
     toast('Deselected \u2014 task not placed.');
   }
 });
-
-// ── happiness ─────────────────────────────────────────────────────────────────
-function updateHappiness() {
-  S.people.forEach(p => {
-    const dot = document.getElementById('hap-' + p.person_id);
-    if (!dot) return;
-    const n = Object.values(S.sched).filter(e => e.person_id === p.person_id).length;
-    if (n === 0) { dot.style.background = 'var(--muted)'; dot.title = 'No tasks assigned yet'; }
-    else if (n <= 2) { dot.style.background = 'var(--success)'; dot.title = 'Reasonable workload (' + n + ' tasks)'; }
-    else if (n <= 4) { dot.style.background = 'var(--warn)'; dot.title = 'Getting busy (' + n + ' tasks)'; }
-    else { dot.style.background = 'var(--danger)'; dot.title = 'Heavy workload! (' + n + ' tasks)'; }
-  });
-}
 
 // ── simulation ────────────────────────────────────────────────────────────────
 function fmtConflict(c) {
@@ -519,7 +737,7 @@ async function runSim() {
       panel.innerHTML = '<h3>Simulation Result \u2014 ' + (d.conflicts || []).length + ' Conflict(s)</h3>' +
         items + '<div class="info">Conflicting tasks highlighted in red. Reschedule and simulate again.</div>';
     }
-    refreshOverlays();
+    syncCalendar();
   } catch (e) { toast('Simulation error: ' + e.message, true); }
   finally { btn.disabled = false; btn.textContent = '\u25b6 Simulate'; }
 }

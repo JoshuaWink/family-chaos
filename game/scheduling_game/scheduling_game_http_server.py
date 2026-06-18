@@ -1,6 +1,8 @@
 """Scheduling game HTTP server exposing M1 endpoints."""
 
 import json
+import mimetypes
+import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
@@ -8,6 +10,11 @@ from urllib.parse import urlparse
 
 from .game_ui import GAME_UI_HTML
 from .scheduling_game_service import SchedulingGameService
+
+# Absolute path to the cup-ui static assets shipped alongside this package
+_CUP_UI_ROOT = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "cup-ui")
+)
 
 
 class SchedulingGameHttpServer:
@@ -84,6 +91,23 @@ class SchedulingGameHttpServer:
 
                 if path == "/":
                     self._send_html(200, GAME_UI_HTML)
+                    return
+
+                # Static cup-ui assets (CSS + JS components)
+                if path.startswith("/cup-ui/"):
+                    rel = path[len("/cup-ui/"):]
+                    # Prevent path traversal
+                    file_path = os.path.normpath(os.path.join(_CUP_UI_ROOT, rel))
+                    if not file_path.startswith(_CUP_UI_ROOT):
+                        self._send_json(403, {"error": "forbidden"})
+                        return
+                    if os.path.isfile(file_path):
+                        mime, _ = mimetypes.guess_type(file_path)
+                        with open(file_path, "rb") as fh:
+                            data = fh.read()
+                        self._send_bytes(200, data, mime or "application/octet-stream")
+                        return
+                    self._send_json(404, {"error": "not_found"})
                     return
 
                 self._send_json(404, {"error": "not_found"})
@@ -175,5 +199,12 @@ class SchedulingGameHttpServer:
                 self.send_header("Content-Length", str(len(payload)))
                 self.end_headers()
                 self.wfile.write(payload)
+
+            def _send_bytes(self, status_code: int, data: bytes, content_type: str) -> None:
+                self.send_response(status_code)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
 
         return _Handler

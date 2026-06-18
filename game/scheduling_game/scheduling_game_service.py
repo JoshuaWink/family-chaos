@@ -183,8 +183,16 @@ class SchedulingGameService:
         return None
 
     def _build_events(self, session: Dict[str, Any]) -> List[ScheduledEvent]:
-        events = []
+        # Last-entry-wins per task_id — supports drag-to-reschedule without
+        # a dedicated unschedule endpoint.
+        latest: Dict[str, Any] = {}
         for raw in session.get("schedule") or []:
+            tid = str((raw or {}).get("task_id") or "")
+            if tid:
+                latest[tid] = raw
+
+        events = []
+        for raw in latest.values():
             try:
                 event = ScheduledEvent(
                     task_id=str(raw.get("task_id") or ""),
